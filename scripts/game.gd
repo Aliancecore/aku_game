@@ -57,7 +57,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	add_child(hud)
 	hud.show_message("AKU", "La sorcière de Cotonou\n\n"
-			+ "Flèches ou ZQSD : voler     Espace : lancer un sort\n"
+			+ "Flèches : voler     Espace : lancer un sort\n"
 			+ "Maintenir Espace : sort chargé\n\nEntrée pour commencer")
 
 	_read_cli()
@@ -195,6 +195,7 @@ func _spawn_wave(wave: Dictionary) -> void:
 
 func _check_collisions() -> void:
 	var enemies := get_tree().get_nodes_in_group("enemies")
+	_cancel_shots()
 
 	for node in get_tree().get_nodes_in_group("player_shots"):
 		var shot := node as Shot
@@ -232,6 +233,30 @@ func _check_collisions() -> void:
 			shot.queue_free()
 			_hurt_player()
 			return
+
+
+## Quand un sort de la sorcière touche une boule d'esprit, les deux s'annulent.
+## Un sort chargé détruit la boule mais continue sa route.
+func _cancel_shots() -> void:
+	var enemy_shots := get_tree().get_nodes_in_group("enemy_shots")
+	for node in get_tree().get_nodes_in_group("player_shots"):
+		var mine := node as Shot
+		if mine.is_queued_for_deletion():
+			continue
+		for other_node in enemy_shots:
+			var theirs := other_node as Shot
+			if theirs.is_queued_for_deletion():
+				continue
+			# Les deux vont vite l'un vers l'autre : on teste le mouvement relatif pendant l'image.
+			var before := mine.previous - theirs.previous
+			var after := mine.position - theirs.position
+			var reach := mine.radius + theirs.radius + GameConfig.SHOT_CANCEL_MARGIN
+			if _segment_hits(before, after, Vector3.ZERO, reach):
+				_burst(theirs.position, Color(1.0, 0.6, 0.9), 1.6)
+				theirs.queue_free()
+				if not mine.piercing:
+					mine.queue_free()
+					break
 
 
 ## Le segment [a, b] (trajet d'un projectile pendant une image) passe-t-il à moins de r du point c ?
@@ -322,11 +347,11 @@ func _enemy_shot(from: Vector3, dir: Vector3) -> void:
 # --- Contrôles ----------------------------------------------------------------
 
 func _setup_inputs() -> void:
-	# Touches physiques : W/A/S/D correspondent à Z/Q/S/D sur un clavier AZERTY.
-	_bind("move_up", [KEY_UP, KEY_W], JOY_AXIS_LEFT_Y, -1.0)
-	_bind("move_down", [KEY_DOWN, KEY_S], JOY_AXIS_LEFT_Y, 1.0)
-	_bind("move_left", [KEY_LEFT, KEY_A], JOY_AXIS_LEFT_X, -1.0)
-	_bind("move_right", [KEY_RIGHT, KEY_D], JOY_AXIS_LEFT_X, 1.0)
+	# Déplacement : flèches du clavier (ou stick gauche de la manette).
+	_bind("move_up", [KEY_UP], JOY_AXIS_LEFT_Y, -1.0)
+	_bind("move_down", [KEY_DOWN], JOY_AXIS_LEFT_Y, 1.0)
+	_bind("move_left", [KEY_LEFT], JOY_AXIS_LEFT_X, -1.0)
+	_bind("move_right", [KEY_RIGHT], JOY_AXIS_LEFT_X, 1.0)
 	_bind("shoot", [KEY_SPACE, KEY_J], -1, 0.0, JOY_BUTTON_A)
 	_bind("start", [KEY_ENTER, KEY_KP_ENTER], -1, 0.0, JOY_BUTTON_START)
 	_bind("quit", [KEY_ESCAPE])

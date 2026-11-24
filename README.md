@@ -13,8 +13,8 @@ godot-4 -e              # ouvrir dans l'éditeur
 
 | Touche | Action |
 |---|---|
-| Flèches ou ZQSD | se déplacer (haut, bas, gauche, droite) ; le balai avance tout seul |
-| Espace (appui court) | lancer un sort |
+| Flèches | se déplacer (haut, bas, gauche, droite) ; le balai avance tout seul |
+| Espace (appui court) | lancer un sort ; il annule une boule d'esprit qu'il touche |
 | Espace (maintenir 1 s puis relâcher) | sort chargé : 5 dégâts, traverse les esprits |
 | Entrée | commencer / rejouer |
 | Échap | quitter |

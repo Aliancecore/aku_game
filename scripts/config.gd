@@ -50,6 +50,7 @@ const HOVER_TIME := 5.0                 ## …pendant ce temps, puis foncent.
 const FIRE_ZONE := Vector2(-95.0, -14.0) ## Les esprits ne tirent qu'entre ces profondeurs.
 const ENEMY_SHOT_SPEED := 30.0
 const ENEMY_SHOT_RADIUS := 0.45
+const SHOT_CANCEL_MARGIN := 0.7         ## Marge pour qu'un sort annule facilement une boule d'esprit.
 
 # Boss : un seul, lancé par la dernière vague du dernier niveau.
 const BOSS_NAME := "L'Esprit du Lac Nokoué"
