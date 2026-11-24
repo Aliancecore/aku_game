@@ -1,0 +1,14 @@
+{
+    "name": "Niveau 1 — Les rues de Cotonou",
+    "waves": [
+        { "time": 2.0,  "type": "feu_follet",   "count": 1, "y": 4.0,  "pattern": "linear" },
+        { "time": 4.5,  "type": "feu_follet",   "count": 1, "y": -4.0, "pattern": "sine" },
+        { "time": 7.0,  "type": "feu_follet",   "count": 3, "y": 6.0,  "pattern": "linear" },
+        { "time": 11.0, "type": "feu_follet",   "count": 3, "y": -2.0, "pattern": "sine" },
+        { "time": 15.0, "type": "esprit_rouge", "count": 1, "y": 2.0,  "pattern": "linear" },
+        { "time": 18.0, "type": "feu_follet",   "count": 4, "y": 7.0,  "pattern": "zigzag" },
+        { "time": 22.0, "type": "feu_follet",   "count": 4, "y": -5.0, "pattern": "zigzag" },
+        { "time": 26.0, "type": "esprit_rouge", "count": 2, "y": 0.0,  "pattern": "sine" },
+        { "time": 30.0, "type": "feu_follet",   "count": 5, "y": 4.0,  "pattern": "sine" }
+    ]
+}

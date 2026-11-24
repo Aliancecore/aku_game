@@ -1,0 +1,14 @@
+{
+    "name": "Niveau 2 — La nuit des esprits",
+    "waves": [
+        { "time": 2.0,  "type": "feu_follet",   "count": 4, "y": 6.0,  "pattern": "sine" },
+        { "time": 5.0,  "type": "feu_follet",   "count": 4, "y": -5.0, "pattern": "sine" },
+        { "time": 8.0,  "type": "esprit_rouge", "count": 2, "y": 3.0,  "pattern": "zigzag" },
+        { "time": 12.0, "type": "feu_follet",   "count": 6, "y": 0.0,  "pattern": "zigzag" },
+        { "time": 16.0, "type": "esprit_rouge", "count": 3, "y": -4.0, "pattern": "linear" },
+        { "time": 19.0, "type": "esprit_rouge", "count": 3, "y": 6.0,  "pattern": "linear" },
+        { "time": 24.0, "type": "feu_follet",   "count": 6, "y": 2.0,  "pattern": "sine" },
+        { "time": 28.0, "type": "esprit_rouge", "count": 4, "y": -1.0, "pattern": "zigzag" },
+        { "time": 36.0, "type": "boss",         "count": 1, "y": 0.0,  "pattern": "hover" }
+    ]
+}
