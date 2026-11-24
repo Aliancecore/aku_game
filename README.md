@@ -1,7 +1,8 @@
 # Aku — la sorcière de Cotonou
 
-Un shoot'em up à défilement horizontal en 3D, fait avec **Godot 4.7**.
-La nuit, au-dessus de Cotonou, une sorcière sur son balai combat les esprits qui envahissent la ville.
+Un rail shooter en 3D, fait avec **Godot 4.7**.
+La nuit, une sorcière sur son balai file au-dessus d'une avenue de Cotonou et combat les esprits
+qui surgissent du fond de la brume. La caméra est derrière elle.
 
 ## Lancer le jeu
 
@@ -12,7 +13,7 @@ godot-4 -e              # ouvrir dans l'éditeur
 
 | Touche | Action |
 |---|---|
-| Flèches ou ZQSD | voler |
+| Flèches ou ZQSD | se déplacer (haut, bas, gauche, droite) ; le balai avance tout seul |
 | Espace (appui court) | lancer un sort |
 | Espace (maintenir 1 s puis relâcher) | sort chargé : 5 dégâts, traverse les esprits |
 | Entrée | commencer / rejouer |
@@ -27,12 +28,12 @@ Le découpage reprend celui de notre R-Type :
 | Fichier | Rôle | Équivalent R-Type |
 |---|---|---|
 | `scripts/config.gd` | tous les réglages (vitesses, vies, cadences) | `GameConfig.hpp` |
-| `scripts/patterns.gd` | trajectoires : `linear`, `sine`, `zigzag` | `LinearPattern`, `SinePattern` |
+| `scripts/patterns.gd` | trajectoires : `linear`, `sine`, `zigzag`, `spiral`, `hover` | `LinearPattern`, `SinePattern`, `HoverPattern` |
 | `levels/*.json` | vagues d'esprits de chaque niveau | `assets/levels/*.json` |
 | `scripts/game.gd` | états, niveaux, collisions, santé, score | `LevelSystem`, `CollisionSystem`, `HealthSystem` |
 | `scripts/witch.gd` | la sorcière : vol, sorts, charge | `PlayerControlSystem`, `ShootingSystem` |
 | `scripts/enemy.gd`, `spirit.gd`, `boss.gd` | les esprits et le boss | entités Bydos / boss |
-| `scripts/city.gd` | Cotonou la nuit, en couches qui défilent | `Starfield` |
+| `scripts/city.gd` | l'avenue de Cotonou qui défile vers la caméra | `Starfield` |
 | `scripts/hud.gd` | score, vies, jauge de charge, barre du boss | `HudWidgets` |
 
 Tout est construit en code avec des formes simples : il n'y a pas encore de modèles 3D.
@@ -42,14 +43,15 @@ Tout est construit en code avec des formes simples : il n'y a pas encore de mod�
 Dans `levels/level1.json` :
 
 ```json
-{ "time": 12.0, "type": "esprit_rouge", "count": 3, "y": 2.0, "pattern": "sine" }
+{ "time": 12.0, "type": "esprit_rouge", "count": 3, "x": 0.0, "y": 2.0, "pattern": "hover", "formation": "row" }
 ```
 
-- `time` : seconde d'apparition depuis le début du niveau.
+- `time` : seconde d'apparition depuis le début du niveau. Les esprits naissent au fond de l'avenue et mettent environ 6 s à arriver.
 - `type` : `feu_follet`, `esprit_rouge` ou `boss`.
-- `count` : nombre d'esprits, alignés les uns derrière les autres.
-- `y` : hauteur, de `-8` (au ras du sol) à `10` (en haut).
-- `pattern` : `linear`, `sine` ou `zigzag`.
+- `count` : nombre d'esprits.
+- `x` : position gauche/droite, de `-9` à `9`. `y` : hauteur, de `-4` à `7`.
+- `pattern` : `linear` (tout droit), `sine` (vague gauche-droite), `zigzag` (haut-bas), `spiral` (en cercle), `hover` (s'arrête devant la sorcière pour tirer, puis fonce).
+- `formation` : `column` (l'un derrière l'autre, par défaut) ou `row` (côte à côte).
 
 ## Mode test
 

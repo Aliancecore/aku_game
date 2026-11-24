@@ -1,7 +1,7 @@
 class_name Boss
 extends Enemy
-## L'Esprit du Lac Nokoué : arrive par la droite, flotte, et tire
-## alternativement des gerbes visées et des cercles de boules.
+## L'Esprit du Lac Nokoué : surgit du fond de l'avenue, flotte devant la sorcière,
+## et tire alternativement des gerbes visées et des cercles de boules.
 
 var _elapsed := 0.0
 var _fire_timer := 2.5
@@ -12,15 +12,16 @@ var _orbs: Node3D
 var _ring: MeshInstance3D
 
 
-func setup(p_game, _y: float) -> void:
+func setup(p_game, y: float) -> void:
 	game = p_game
 	add_to_group("enemies")
 	health = GameConfig.BOSS_HEALTH
 	max_health = health
-	radius = GameConfig.BOSS_RADIUS
+	radius = 3.0 * GameConfig.BOSS_SCALE
 	score = GameConfig.BOSS_SCORE
 	color = Color(0.3, 0.85, 1.0)
-	position = Vector3(GameConfig.SPAWN_X + 6.0, 0.0, 0.0)
+	position = Vector3(0.0, y, GameConfig.SPAWN_Z - 30.0)
+	scale = Vector3.ONE * GameConfig.BOSS_SCALE
 	_build()
 
 
@@ -37,7 +38,7 @@ func _build() -> void:
 	var ring := TorusMesh.new()
 	ring.inner_radius = 3.6
 	ring.outer_radius = 3.85
-	_ring = Fx.mesh(self, ring, Fx.mat(color, 3.0), Vector3.ZERO, Vector3(PI / 2.4, 0.0, 0.0))
+	_ring = Fx.mesh(self, ring, Fx.mat(color, 3.0), Vector3.ZERO, Vector3(PI / 2.6, 0.0, 0.0))
 
 	_orbs = Node3D.new()
 	add_child(_orbs)
@@ -48,16 +49,17 @@ func _build() -> void:
 
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.4, 0.7, 1.0)
-	light.light_energy = 3.0
-	light.omni_range = 14.0
+	light.light_energy = 4.0
+	light.omni_range = 16.0
 	add_child(light)
 
 
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
-	if position.x > GameConfig.BOSS_HOVER_X:
-		position.x -= GameConfig.BOSS_ENTER_SPEED * delta
-	position.y = 5.0 * sin(_elapsed * 0.6)
+	if position.z < GameConfig.BOSS_HOVER_Z:
+		position.z = minf(position.z + GameConfig.BOSS_ENTER_SPEED * delta, GameConfig.BOSS_HOVER_Z)
+	position.x = 6.0 * sin(_elapsed * 0.45)
+	position.y = 2.5 + 3.0 * sin(_elapsed * 0.7)
 	_orbs.rotation.z += delta * 1.2
 	_ring.rotation.y += delta * 0.8
 
@@ -65,14 +67,14 @@ func _physics_process(delta: float) -> void:
 	_core_mat.emission_energy_multiplier = 1.5 + _flash * 6.0
 
 	_fire_timer -= delta
-	if _fire_timer <= 0.0 and position.x <= GameConfig.BOSS_HOVER_X + 1.0:
+	if _fire_timer <= 0.0 and position.z >= GameConfig.BOSS_HOVER_Z - 1.0:
 		var enraged := health < max_health / 2
 		_fire_timer = 0.8 if enraged else 1.3
 		_volley += 1
 		if _volley % 3 == 0:
 			game.enemy_ring(position, 14 if enraged else 10)
 		else:
-			game.enemy_spread(position, 5 if enraged else 3, 0.22)
+			game.enemy_spread(position, 5 if enraged else 3, 0.12)
 
 
 func _on_damaged() -> void:

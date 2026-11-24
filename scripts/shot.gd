@@ -7,23 +7,24 @@ var radius := 0.3
 var damage := 1
 var piercing := false       ## Un sort chargé traverse les esprits.
 var hit := {}               ## Ennemis déjà touchés (pour ne frapper qu'une fois en traversant).
+var previous := Vector3.ZERO ## Position à l'image d'avant : les sorts vont vite, on teste le segment.
 
 
 static func make(pos: Vector3, vel: Vector3, color: Color, size: float, group: String) -> Shot:
 	var s := Shot.new()
 	s.position = pos
+	s.previous = pos
 	s.velocity = vel
 	s.radius = size
 	s.add_to_group(group)
 	Fx.mesh(s, Fx.sphere(size, 10), Fx.mat(color, 5.0))
-	var halo := Fx.mat(Color(color, 0.3), 2.0, true)
-	Fx.mesh(s, Fx.sphere(size * 1.8, 10), halo)
+	Fx.mesh(s, Fx.sphere(size * 1.8, 10), Fx.mat(Color(color, 0.3), 2.0, true))
 	return s
 
 
 func _physics_process(delta: float) -> void:
+	previous = position
 	position += velocity * delta
-	rotation.x += delta * 6.0
-	var limit_x := GameConfig.PLAY_MAX.x + GameConfig.OFFSCREEN_MARGIN + 4.0
-	if absf(position.x) > limit_x or absf(position.y) > 16.0:
+	var too_far := position.z < -GameConfig.SHOT_RANGE or position.z > GameConfig.DESPAWN_Z
+	if too_far or absf(position.x) > 40.0 or absf(position.y) > 30.0:
 		queue_free()

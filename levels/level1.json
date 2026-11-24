@@ -1,14 +1,14 @@
 {
-    "name": "Niveau 1 — Les rues de Cotonou",
+    "name": "Niveau 1 — L'avenue des esprits",
     "waves": [
-        { "time": 2.0,  "type": "feu_follet",   "count": 1, "y": 4.0,  "pattern": "linear" },
-        { "time": 4.5,  "type": "feu_follet",   "count": 1, "y": -4.0, "pattern": "sine" },
-        { "time": 7.0,  "type": "feu_follet",   "count": 3, "y": 6.0,  "pattern": "linear" },
-        { "time": 11.0, "type": "feu_follet",   "count": 3, "y": -2.0, "pattern": "sine" },
-        { "time": 15.0, "type": "esprit_rouge", "count": 1, "y": 2.0,  "pattern": "linear" },
-        { "time": 18.0, "type": "feu_follet",   "count": 4, "y": 7.0,  "pattern": "zigzag" },
-        { "time": 22.0, "type": "feu_follet",   "count": 4, "y": -5.0, "pattern": "zigzag" },
-        { "time": 26.0, "type": "esprit_rouge", "count": 2, "y": 0.0,  "pattern": "sine" },
-        { "time": 30.0, "type": "feu_follet",   "count": 5, "y": 4.0,  "pattern": "sine" }
+        { "time": 1.5,  "type": "feu_follet",   "count": 1, "x": 0.0,  "y": 1.0, "pattern": "linear" },
+        { "time": 3.5,  "type": "feu_follet",   "count": 3, "x": -4.0, "y": 2.0, "pattern": "linear" },
+        { "time": 6.0,  "type": "feu_follet",   "count": 3, "x": 4.0,  "y": 0.0, "pattern": "sine" },
+        { "time": 9.0,  "type": "feu_follet",   "count": 4, "x": 0.0,  "y": 3.0, "pattern": "linear", "formation": "row" },
+        { "time": 12.0, "type": "esprit_rouge", "count": 1, "x": 0.0,  "y": 2.0, "pattern": "hover" },
+        { "time": 16.0, "type": "feu_follet",   "count": 4, "x": -3.0, "y": 1.0, "pattern": "zigzag" },
+        { "time": 19.0, "type": "feu_follet",   "count": 5, "x": 0.0,  "y": 1.0, "pattern": "spiral" },
+        { "time": 23.0, "type": "esprit_rouge", "count": 2, "x": 0.0,  "y": 1.0, "pattern": "hover", "formation": "row" },
+        { "time": 28.0, "type": "feu_follet",   "count": 5, "x": 0.0,  "y": 4.0, "pattern": "sine", "formation": "row" }
     ]
 }
