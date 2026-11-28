@@ -64,14 +64,36 @@ Chaque outil écrit sa capture dans `.godot/shots/` (le Godot installé par snap
 Les petits shaders `shaders/ghost.gdshader` et `shaders/city_night.gdshader` gèrent la lueur des esprits et les fenêtres :
 l'émission par texture d'un `StandardMaterial3D` éclairait tout en blanc dans ce projet, d'où ces shaders.
 
-## Atterrir et courir
+## Atterrir, courir et sauter
 
-Quand la sorcière descend près du sol, elle **atterrit toute seule et se met à courir** à pied,
-son balai sur l'épaule. Elle peut toujours tirer et bouger à gauche/droite (un peu moins vite
-qu'en vol), mais elle ne peut plus monter ni descendre : elle rase le sol, hors de portée
-des esprits qui volent haut. Pour redécoller, **appuie deux fois vite sur la flèche du haut**
-(moins de 0,35 s entre les deux appuis). Un seul appui ne fait rien.
-Les réglages sont dans `scripts/config.gd` (section « Atterrissage et course »).
+Quand la sorcière descend près du sol, elle **atterrit toute seule et se met à courir** à pied, son balai sur
+l'épaule. Elle tire et bouge à gauche/droite (un peu moins vite qu'en vol), mais ne monte plus ni ne descend.
+
+| Touche (à pied) | Effet |
+|---|---|
+| Flèche haut, **une fois** | **sauter** (2,6 m de haut, 0,8 s en l'air) |
+| Flèche haut, **deux fois vite** (moins de 0,35 s) | **s'envoler** sur son balai : le premier appui lance un saut, le second la fait décoller |
+
+Les réglages sont dans `scripts/config.gd` (sections « Atterrissage et course » et « Saut »).
+
+## Obstacles et collisions
+
+La sorcière mesure **1,9 m** (chapeau compris) et une voiture **1,6 m** : les tailles sont réalistes.
+Tout ce qui est au sol peut la heurter, et **être percutée fait perdre une vie** (puis 2 secondes d'invincibilité) :
+
+| Obstacle | Hauteur | Où |
+|---|---|---|
+| voiture | 1,6 m | 4 voies : 2 viennent vers nous, 2 s'éloignent, chacune à sa vitesse |
+| benne | 1,3 m | trottoirs |
+| buisson | 1,0 m | au milieu de la route |
+| banc | 0,55 m | trottoirs |
+| poteau, tronc de palmier | jusqu'à 2 m | bord de la route |
+
+Pour les éviter : **sauter par-dessus** (les pieds doivent passer plus haut que l'obstacle), se décaler
+(un buisson au milieu, des voies libres entre deux voitures), ou **voler** : en vol, on passe au-dessus de tout.
+En vue 2D la profondeur n'existe pas, donc la voie du fond compte comme la seule route : celles proches de la caméra
+sont cachées, et elles ne comptent pas pour les collisions.
+Test automatique : `godot-4 --headless --path . --script res://tests/selftest_obstacles.gd`.
 
 ## Bonus
 

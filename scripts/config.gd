@@ -7,32 +7,32 @@ extends RefCounted
 ## La caméra est derrière elle (z positif). Les esprits arrivent du fond.
 
 # Caméra (derrière la sorcière, elle la suit en partie).
-const CAMERA_Z := 8.5
-const CAMERA_HEIGHT := 2.6
+const CAMERA_Z := 6.0
+const CAMERA_HEIGHT := 2.0
 const CAMERA_FOV := 70.0
 const CAMERA_FOLLOW := 0.6              ## Part du déplacement de la sorcière que la caméra suit.
 
 # Vue de côté (touche P), façon R-Type : la caméra passe sur le côté, les esprits
 # arrivent de la droite (le -Z du jeu devient la droite de l'écran).
-const SIDE_CAMERA := Vector3(36.0, 3.0, -8.0)
-const SIDE_LOOK := Vector3(0.0, 1.0, -8.0)
+const SIDE_CAMERA := Vector3(28.0, 2.0, -7.0)
+const SIDE_LOOK := Vector3(0.0, 0.0, -7.0)
 const SIDE_FOV := 28.0
-const SIDE_Z_RANGE := Vector2(-11.0, 4.0)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
-const SIDE_VIEW_FAR_Z := -22.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
+const SIDE_Z_RANGE := Vector2(-10.0, 3.0)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
+const SIDE_VIEW_FAR_Z := -19.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
 const SIDE_SPAWN_Z := -45.0                 ## Apparition juste hors écran, pour que ça arrive vite.
-const SIDE_HOVER_Z := -18.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
-const SIDE_BOSS_HOVER_Z := -19.0
+const SIDE_HOVER_Z := -14.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
+const SIDE_BOSS_HOVER_Z := -15.0
 const VIEW_BLEND_SPEED := 2.5               ## Vitesse du changement de vue (1 / seconde).
 
 # Zone de vol de la sorcière, dans le plan z = 0.
 const PLAY_MIN := Vector2(-9.0, -4.0)
-const PLAY_MAX := Vector2(9.0, 7.0)
+const PLAY_MAX := Vector2(9.0, 5.5)
 const GROUND_Y := -6.0
 
 # Atterrissage et course : près du sol, la sorcière descend et court. Deux appuis rapides
 # sur la flèche du haut la font décoller.
 const LAND_TRIGGER_Y := -3.3            ## En vol, à cette hauteur ou moins, elle atterrit.
-const RUN_HEIGHT := 1.0                 ## Hauteur de son centre au-dessus du sol quand elle court.
+const RUN_HEIGHT := 0.95                ## Hauteur de son centre au-dessus du sol quand elle court (elle mesure 1,9 m).
 const RUN_Y := GROUND_Y + RUN_HEIGHT
 const LAND_SPEED := 9.0                 ## Vitesse de descente (mètres par seconde).
 const TAKEOFF_SPEED := 12.0             ## Vitesse de montée au décollage.
@@ -40,13 +40,21 @@ const TAKEOFF_Y := -2.0                 ## Hauteur où le décollage rend la mai
 const RUN_SPEED_FACTOR := 0.85          ## À pied, elle va un peu moins vite qu'en vol.
 const DOUBLE_TAP_TIME := 0.35           ## Délai max entre les deux appuis pour décoller.
 
+# Saut (à pied) : un appui sur la flèche du haut. Assez haut pour passer par-dessus une voiture (1,6 m).
+const JUMP_HEIGHT := 2.6                ## Hauteur du saut, en mètres.
+const JUMP_TIME := 0.8                  ## Durée en l'air, en secondes.
+
+# Obstacles : ils ne gênent que ce qui est près du sol.
+const PLAYER_BODY_RADIUS := 0.4         ## Largeur de la sorcière pour les obstacles (elle mesure 1,9 m de haut).
+const OBSTACLE_ZONE := 2.0              ## Poteaux et troncs ne comptent que sous cette hauteur : en vol, on passe au-dessus.
+
 # Vitesse de vol : la ville défile vers la caméra.
 const SCROLL_SPEED := 18.0
 
 # Sorcière.
 const PLAYER_START := Vector3(0.0, 0.5, 0.0)
 const PLAYER_SPEED := 10.0
-const PLAYER_RADIUS := 0.9
+const PLAYER_RADIUS := 0.6
 const PLAYER_LIVES := 3
 const PLAYER_INVINCIBLE_TIME := 2.0     ## Secondes d'invincibilité après un coup.
 const PLAYER_FIRE_COOLDOWN := 0.18      ## Secondes entre deux sorts.

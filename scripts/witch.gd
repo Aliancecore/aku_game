@@ -29,11 +29,16 @@ var _last_up_tap := -10.0  ## Moment du dernier appui sur la flèche du haut (do
 var _tilt: Node3D          ## Roulis et tangage quand elle se déplace.
 var _body: Node3D          ## Le modèle en vol : le mage assis sur son balai.
 var _runner: Node3D        ## Le modèle debout, pour la course.
+var _runner_mage: Node3D
+var _jump_t := -1.0        ## Temps écoulé depuis le début du saut (négatif = elle ne saute pas).
+var _hit_timer := 0.0      ## Temps restant de l'animation de choc.
+var _anim := ""            ## Animation en cours à pied.
 var _charge_orb: MeshInstance3D
 var _shield_mesh: MeshInstance3D
 
-const MODEL_SCALE := 1.0   ## Le mage mesure 3 m dans le pack ; on le garde à sa taille pour qu'il se lise bien.
-const SEAT_HEIGHT := 0.55  ## Hauteur du balai sous le mage assis (réglée à l'œil avec tools/preview_witch.gd).
+const MODEL_SCALE := 0.63  ## Le mage mesure 3 m dans le pack : à cette échelle, chapeau compris, il fait 1,9 m,
+							## la taille d'une vraie personne à côté d'une voiture (1,6 m).
+const SEAT_HEIGHT := 0.55  ## Hauteur du balai sous le mage assis, avant mise à l'échelle (réglée à l'œil avec tools/preview_witch.gd).
 
 
 func _ready() -> void:
@@ -47,16 +52,16 @@ func _ready() -> void:
 	aura.light_color = Color(1.0, 0.6, 0.3)
 	aura.light_energy = 1.6
 	aura.omni_range = 5.0
-	aura.position = Vector3(0, 1.4, 2.0)
+	aura.position = Vector3(0, 1.0, 1.4)
 	_tilt.add_child(aura)
 
 	# Boule d'énergie qui grossit devant elle pendant la charge (son point d'attache change à pied).
-	_charge_orb = Fx.mesh(_tilt, Fx.sphere(0.6), Fx.mat(Color(1.0, 0.35, 0.9), 5.0), Vector3(0, 0.3, -2.4))
+	_charge_orb = Fx.mesh(_tilt, Fx.sphere(0.4), Fx.mat(Color(1.0, 0.35, 0.9), 5.0), Vector3(0, 0.2, -1.6))
 	_charge_orb.visible = false
 
 	# Bulle du bouclier.
-	_shield_mesh = Fx.mesh(self, Fx.sphere(1.9, 20), Fx.mat(Color(0.45, 0.6, 1.0, 0.25), 2.0, true),
-			Vector3(0, 0.6, 0))
+	_shield_mesh = Fx.mesh(self, Fx.sphere(1.25, 20), Fx.mat(Color(0.45, 0.6, 1.0, 0.25), 2.0, true),
+			Vector3(0, 0.1, 0))
 	_shield_mesh.visible = false
 
 
@@ -86,7 +91,8 @@ func _build_flying() -> void:
 	var straw := Fx.mat(Color(0.88, 0.7, 0.34))
 	var band := Fx.mat(Color(0.95, 0.42, 0.05))
 	var broom := Node3D.new()
-	broom.position = Vector3(0, SEAT_HEIGHT, 0)
+	broom.scale = Vector3.ONE * MODEL_SCALE
+	broom.position = Vector3(0, SEAT_HEIGHT * MODEL_SCALE, 0)
 	_body.add_child(broom)
 	Fx.mesh(broom, Fx.cylinder(0.07, 0.07, 3.4), wood, Vector3(0, 0, -0.1), Vector3(PI / 2.0, 0, 0))
 	Fx.mesh(broom, Fx.cylinder(0.12, 0.38, 1.0), straw, Vector3(0, 0, 2.05), Vector3(-PI / 2.0, 0, 0))
@@ -119,12 +125,15 @@ func _build_runner() -> void:
 	_runner.position.y = -GameConfig.RUN_HEIGHT
 	_runner.visible = false
 	_tilt.add_child(_runner)
-	_runner.add_child(_new_mage("Running_A"))
+	_runner_mage = _new_mage("Running_A")
+	_runner.add_child(_runner_mage)
 
 
 func _physics_process(delta: float) -> void:
 	_time += delta
-	_tilt.position.y = 0.0 if on_ground() else sin(_time * 3.0) * 0.12
+	_tilt.position.y = 0.0 if on_ground() else sin(_time * 3.0) * 0.08
+	_hit_timer = maxf(_hit_timer - delta, 0.0)
+	_update_animation()
 
 	if shield > 0.0:
 		shield -= delta
@@ -154,12 +163,18 @@ func _physics_process(delta: float) -> void:
 			if is_equal_approx(position.y, GameConfig.RUN_Y):
 				_set_mode(Mode.RUNNING)
 		Mode.RUNNING:
-			position.y = GameConfig.RUN_Y
 			step *= GameConfig.RUN_SPEED_FACTOR
-			# Deux appuis rapides sur la flèche du haut : elle remonte sur son balai.
+			if _jump_t >= 0.0:
+				_jump_t += delta
+				if _jump_t >= GameConfig.JUMP_TIME:
+					_jump_t = -1.0
+			position.y = GameConfig.RUN_Y + jump_height()
+			# Flèche du haut : un appui fait sauter, un second appui rapide la fait s'envoler sur son balai.
 			if Input.is_action_just_pressed("move_up"):
 				if _time - _last_up_tap <= GameConfig.DOUBLE_TAP_TIME:
 					_set_mode(Mode.TAKING_OFF)
+				else:
+					start_jump()
 				_last_up_tap = _time
 		Mode.TAKING_OFF:
 			position.y = move_toward(position.y, GameConfig.TAKEOFF_Y, GameConfig.TAKEOFF_SPEED * delta)
@@ -229,8 +244,10 @@ func _set_mode(new_mode: Mode, announce := true) -> void:
 	_body.visible = not grounded
 	_runner.visible = grounded
 	# La boule de charge se tient au bout du balai en vol, dans la main à pied.
-	_charge_orb.position = Vector3(0.0, 0.5, -1.4) if grounded else Vector3(0.0, 0.3, -2.4)
+	_charge_orb.position = Vector3(0.0, 0.3, -0.9) if grounded else Vector3(0.0, 0.2, -1.6)
 	_last_up_tap = -10.0
+	_jump_t = -1.0
+	_anim = ""
 	if announce:
 		if new_mode == Mode.RUNNING:
 			landed.emit()
@@ -238,11 +255,58 @@ func _set_mode(new_mode: Mode, announce := true) -> void:
 			took_off.emit()
 
 
+## Hauteur actuelle du saut au-dessus du sol (0 si elle ne saute pas). Trajectoire en parabole :
+## elle monte de JUMP_HEIGHT en JUMP_TIME / 2 puis redescend.
+func jump_height() -> float:
+	if _jump_t < 0.0:
+		return 0.0
+	var gravity := 8.0 * GameConfig.JUMP_HEIGHT / (GameConfig.JUMP_TIME * GameConfig.JUMP_TIME)
+	var launch := 4.0 * GameConfig.JUMP_HEIGHT / GameConfig.JUMP_TIME
+	return maxf(launch * _jump_t - 0.5 * gravity * _jump_t * _jump_t, 0.0)
+
+
+func is_jumping() -> bool:
+	return _jump_t >= 0.0
+
+
+## Elle saute, si elle court et qu'elle n'est pas déjà en l'air.
+func start_jump() -> void:
+	if mode == Mode.RUNNING and _jump_t < 0.0:
+		_jump_t = 0.0
+
+
+## Hauteur de ses pieds dans le monde : sert aux obstacles (on passe par-dessus si les pieds sont plus hauts).
+func feet_y() -> float:
+	if on_ground():
+		return position.y - GameConfig.RUN_HEIGHT
+	return position.y - 0.5
+
+
+## Elle vient d'être percutée : animation de choc.
+func react_hit() -> void:
+	if on_ground():
+		_hit_timer = 0.6
+
+
+## Choisit l'animation à pied : course, saut en l'air, ou choc.
+func _update_animation() -> void:
+	if not on_ground() or _runner_mage == null:
+		return
+	var wanted := "Running_A"
+	if _hit_timer > 0.0:
+		wanted = "Hit_A"
+	elif _jump_t >= 0.0:
+		wanted = "Jump_Idle"
+	if wanted != _anim:
+		_anim = wanted
+		Models.play(_runner_mage, wanted, wanted != "Hit_A")
+
+
 ## Point de départ des sorts : le bout du balai en vol, la main à pied.
 func muzzle() -> Vector3:
 	if on_ground():
-		return position + Vector3(0.0, 0.5, -1.2)
-	return position + Vector3(0.0, _tilt.position.y, -2.4)
+		return position + Vector3(0.0, 0.3, -0.9)
+	return position + Vector3(0.0, _tilt.position.y, -1.6)
 
 
 ## Dégâts d'un sort : 1, plus 1 par niveau de Force.

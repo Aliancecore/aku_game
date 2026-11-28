@@ -61,7 +61,7 @@ func _ready() -> void:
 	witch = Witch.new()
 	witch.position = GameConfig.PLAYER_START
 	witch.fired.connect(_on_witch_fired)
-	witch.landed.connect(func(): hud.toast("Elle court !  Deux fois flèche haut pour s'envoler", Color(1.0, 0.8, 0.4)))
+	witch.landed.connect(func(): hud.toast("Elle court !  Flèche haut : sauter (voitures !)   Deux fois : s'envoler", Color(1.0, 0.8, 0.4)))
 	witch.took_off.connect(func(): hud.toast("Envol !", Color(0.6, 0.85, 1.0)))
 	world.add_child(witch)
 	_reticle = _make_reticle()
@@ -73,7 +73,7 @@ func _ready() -> void:
 	hud.show_message("AKU", "La sorcière de Cotonou\n\n"
 			+ "Flèches : voler     Espace : lancer un sort\n"
 			+ "Maintenir Espace : sort chargé     P : vue 3D / 2D\n"
-			+ "Près du sol, elle atterrit et court : deux fois flèche haut pour s'envoler\n\nEntrée pour commencer")
+			+ "Près du sol, elle atterrit et court : flèche haut pour sauter les voitures, deux fois pour s'envoler\n\nEntrée pour commencer")
 
 	_read_cli()
 	for kind in witch.power:
@@ -117,9 +117,11 @@ func _physics_process(delta: float) -> void:
 		State.PLAYING:
 			_run_level(delta)
 			_check_collisions()
+			_check_obstacles()
 			_update_bonuses(delta)
 		State.LEVEL_CLEAR:
 			_check_collisions()
+			_check_obstacles()
 			_update_bonuses(delta)
 			_clear_timer -= delta
 			if _clear_timer <= 0.0:
@@ -301,6 +303,34 @@ func _check_collisions() -> void:
 			return
 
 
+## Obstacles du sol (voitures, bennes, bancs, buissons, poteaux, palmiers) : les heurter coûte une vie.
+## Ils ne gênent que près du sol : en volant haut, ou en sautant, on passe par-dessus.
+## En vue 2D la profondeur n'existe pas à l'écran, donc on ignore x comme pour les autres collisions.
+func _check_obstacles() -> void:
+	if _autoplay or not witch.is_hittable():
+		return
+	var feet := witch.feet_y() - GameConfig.GROUND_Y       # hauteur des pieds au-dessus du sol
+	var body := GameConfig.PLAYER_BODY_RADIUS
+	for c in _city.colliders_near(witch.position.z, body):
+		if feet >= float(c["height"]):
+			continue
+		var node: Node3D = c["node"]
+		var half: Vector2 = c["half"]
+		var dx := 0.0 if side_view else absf(node.position.x - witch.position.x)
+		if dx < half.x + body and absf(node.position.z - witch.position.z) < half.y + body:
+			_hit_obstacle(str(c["kind"]))
+			return
+
+
+func _hit_obstacle(kind: String) -> void:
+	_hurt_player("La circulation a eu raison de toi…" if kind == "voiture" else "Tu as foncé dans un obstacle…")
+	witch.react_hit()
+	if kind == "voiture":
+		hud.toast("Renversée par une voiture !", Color(1.0, 0.4, 0.3))
+	else:
+		hud.toast("Aïe : %s !" % kind, Color(1.0, 0.6, 0.3))
+
+
 ## Quand un sort de la sorcière touche une boule d'esprit, les deux s'annulent.
 ## Un sort chargé détruit la boule mais continue sa route.
 func _cancel_shots() -> void:
@@ -404,7 +434,7 @@ func _bonus_text() -> String:
 	return "   ".join(parts)
 
 
-func _hurt_player() -> void:
+func _hurt_player(cause := "Les esprits ont eu raison de toi…") -> void:
 	if _autoplay:
 		return
 	lives -= 1
@@ -413,7 +443,7 @@ func _hurt_player() -> void:
 		state = State.GAME_OVER
 		witch.controls_enabled = false
 		witch.visible = false
-		hud.show_message("GAME OVER", "Les esprits ont eu raison de toi…\nScore : %d\n\nEntrée pour rejouer" % score)
+		hud.show_message("GAME OVER", "%s\nScore : %d\n\nEntrée pour rejouer" % [cause, score])
 	else:
 		witch.hurt()
 

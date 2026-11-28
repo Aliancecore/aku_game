@@ -20,11 +20,15 @@ const PALMS := ["ExoticPalmDefalt", "ExoticPalmOld", "ExoticPalmCurve", "ExoticP
 const PALM_HEIGHT := 9.0      ## Hauteur voulue d'un palmier, en mètres.
 const CAR_HEIGHT := 1.6
 const LAMP_HEIGHT := 7.5
+const LANES := [-3.0, -1.3, 1.3, 3.0]   ## Quatre voies de circulation : les deux du côté -X viennent vers nous, les deux autres s'éloignent.
+const LANE_SPEEDS := [8.0, 11.0, 11.0, 8.0]
+const CARS_PER_LANE := 4
 
 var _scrolling: Node3D        ## Tout ce qui défile est enfant de ce nœud.
 var _cars: Array[Node3D] = []
 var _car_speeds: Array[float] = []
 var _bounds := {}             ## Taille de chaque modèle, mesurée une seule fois.
+var _colliders: Array[Dictionary] = []   ## Les obstacles du sol : {node, half (demi-largeur x, demi-longueur z), height, kind}.
 var _window_mesh: QuadMesh
 var _window_mats: Array[StandardMaterial3D] = []
 var _wall_mats: Array[StandardMaterial3D] = []
@@ -50,6 +54,7 @@ func _ready() -> void:
 		_building_row(side, BACK_ROW_X, Vector2(14, 30), false)
 		_street_furniture(side)
 	_road_markings()
+	_road_props()
 	_build_cars()
 
 
@@ -57,6 +62,10 @@ func _ready() -> void:
 func set_side_view(on: bool) -> void:
 	for child in _scrolling.get_children():
 		(child as Node3D).visible = not (on and (child as Node3D).position.x > 0.0)
+	# Les voitures des voies proches de la caméra masqueraient la sorcière : on ne garde que celles du fond.
+	# Cachées, elles ne comptent pas non plus pour les collisions.
+	for car in _cars:
+		car.visible = not (on and car.position.x > 0.0)
 
 
 func _process(delta: float) -> void:
@@ -155,6 +164,23 @@ func _build_skyline() -> void:
 		var b := _building(w, h, 15.0, mat, 0.06, false)
 		b.position = Vector3(randf_range(-320, 320), GameConfig.GROUND_Y, randf_range(-360, -330))
 		add_child(b)
+
+
+## Enregistre un obstacle du sol. half = demi-largeur (x) et demi-longueur (z) ; height = hauteur au-dessus du sol.
+func _register(node: Node3D, half: Vector2, height: float, kind: String) -> void:
+	_colliders.append({"node": node, "half": half, "height": height, "kind": kind})
+
+
+## Les obstacles dont la profondeur est proche de z (pour les collisions de la sorcière).
+## Ceux qu'on a cachés (vue 2D : le côté de la caméra) ne comptent pas.
+func colliders_near(z: float, margin: float) -> Array[Dictionary]:
+	var near: Array[Dictionary] = []
+	for c in _colliders:
+		var node: Node3D = c["node"]
+		var half: Vector2 = c["half"]
+		if absf(node.position.z - z) < half.y + margin and node.is_visible_in_tree():
+			near.append(c)
+	return near
 
 
 ## Taille d'un modèle (mesurée une fois, puis gardée).
@@ -281,6 +307,7 @@ func _street_furniture(side: float) -> void:
 			# Le bras du lampadaire part vers -X dans le modèle : on le tourne vers la route.
 			post.rotation.y = PI if side < 0.0 else 0.0
 			item.add_child(post)
+			_register(item, Vector2(0.25, 0.25), GameConfig.OBSTACLE_ZONE, "poteau")
 			var light := OmniLight3D.new()
 			light.light_color = Color(1.0, 0.62, 0.3)
 			light.light_energy = 3.0
@@ -295,6 +322,7 @@ func _street_furniture(side: float) -> void:
 			var palm := _place(path, PALM_HEIGHT / _box_of(path).size.y, "origine")
 			palm.rotation.y = randf() * TAU
 			item.add_child(palm)
+			_register(item, Vector2(0.4, 0.4), GameConfig.OBSTACLE_ZONE, "palmier")
 		lamp = not lamp
 		z += 12.0
 
@@ -308,16 +336,48 @@ func _road_markings() -> void:
 		z += 7.0
 
 
-## Voitures sur la route, dans les deux sens : la moitié s'éloigne, l'autre vient vers nous.
+## Des objets posés sur la chaussée et le trottoir : bennes, bancs, buissons. Ils défilent avec la ville,
+## et la sorcière peut les heurter (ou sauter par-dessus). Hauteurs et tailles de la vraie vie.
+## [modèle, hauteur voulue en mètres, x possibles, nom]
+const PROPS := [
+	["dumpster", 1.3, [-4.8, 4.8], "benne"],
+	["bench", 0.55, [-4.8, 4.8], "banc"],
+	["bush", 1.0, [0.0], "buisson"],
+]
+
+func _road_props() -> void:
+	var z := FAR_Z + 10.0
+	while z < NEAR_Z:
+		var spec: Array = PROPS.pick_random()
+		var path: String = CITY_DIR + String(spec[0]) + ".gltf"
+		var box := _box_of(path)
+		var scale: float = float(spec[1]) / box.size.y
+		var prop := _place(path, scale, "centre")
+		var x: float = (spec[2] as Array).pick_random()
+		prop.position = Vector3(x, GameConfig.GROUND_Y, z)
+		prop.rotation.y = 0.0 if x <= 0.0 else PI
+		_scrolling.add_child(prop)
+		_register(prop, Vector2(box.size.x * scale / 2.0, box.size.z * scale / 2.0), float(spec[1]), String(spec[3]))
+		z += randf_range(18.0, 32.0)
+
+
+## Voitures sur quatre voies : la moitié vient vers nous, l'autre s'éloigne. Chaque voie a sa vitesse,
+## donc les voitures d'une même voie gardent leurs distances et ne se traversent pas.
 func _build_cars() -> void:
-	for i in 10:
-		var away := i % 2 == 0
-		var path: String = CITY_DIR + CARS.pick_random() + ".gltf"
-		var car := _place(path, CAR_HEIGHT / _box_of(path).size.y, "centre")
-		# Le devant de la voiture est à +Z dans le modèle : on la tourne dans le sens de la marche.
-		car.rotation.y = PI if away else 0.0
-		car.position = Vector3(1.8 if away else -1.8, GameConfig.GROUND_Y, randf_range(FAR_Z, 0.0))
-		add_child(car)
-		_cars.append(car)
-		var speed := randf_range(8.0, 14.0)
-		_car_speeds.append(-speed if away else speed)
+	var span := NEAR_Z - FAR_Z
+	for lane in LANES.size():
+		var x: float = LANES[lane]
+		var away := x > 0.0
+		var speed: float = LANE_SPEEDS[lane]
+		for k in CARS_PER_LANE:
+			var path: String = CITY_DIR + CARS.pick_random() + ".gltf"
+			var box := _box_of(path)
+			var scale := CAR_HEIGHT / box.size.y
+			var car := _place(path, scale, "centre")
+			# Le devant de la voiture est à +Z dans le modèle : on la tourne dans le sens de la marche.
+			car.rotation.y = PI if away else 0.0
+			car.position = Vector3(x, GameConfig.GROUND_Y, FAR_Z + span * (k + randf_range(0.0, 0.6)) / CARS_PER_LANE)
+			add_child(car)
+			_cars.append(car)
+			_car_speeds.append(-speed if away else speed)
+			_register(car, Vector2(box.size.x * scale / 2.0, box.size.z * scale / 2.0), CAR_HEIGHT * 0.95, "voiture")
