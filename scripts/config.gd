@@ -7,18 +7,18 @@ extends RefCounted
 ## La caméra est derrière elle (z positif). Les esprits arrivent du fond.
 
 # Caméra (derrière la sorcière, elle la suit en partie).
-const CAMERA_Z := 11.5
-const CAMERA_HEIGHT := 3.4
+const CAMERA_Z := 8.5
+const CAMERA_HEIGHT := 2.6
 const CAMERA_FOV := 70.0
 const CAMERA_FOLLOW := 0.6              ## Part du déplacement de la sorcière que la caméra suit.
 
 # Vue de côté (touche P), façon R-Type : la caméra passe sur le côté, les esprits
 # arrivent de la droite (le -Z du jeu devient la droite de l'écran).
-const SIDE_CAMERA := Vector3(42.0, 3.0, -8.0)
+const SIDE_CAMERA := Vector3(36.0, 3.0, -8.0)
 const SIDE_LOOK := Vector3(0.0, 1.0, -8.0)
 const SIDE_FOV := 28.0
 const SIDE_Z_RANGE := Vector2(-11.0, 4.0)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
-const SIDE_VIEW_FAR_Z := -25.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
+const SIDE_VIEW_FAR_Z := -22.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
 const SIDE_SPAWN_Z := -45.0                 ## Apparition juste hors écran, pour que ça arrive vite.
 const SIDE_HOVER_Z := -18.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
 const SIDE_BOSS_HOVER_Z := -19.0
@@ -46,7 +46,7 @@ const SCROLL_SPEED := 18.0
 # Sorcière.
 const PLAYER_START := Vector3(0.0, 0.5, 0.0)
 const PLAYER_SPEED := 10.0
-const PLAYER_RADIUS := 0.8
+const PLAYER_RADIUS := 0.9
 const PLAYER_LIVES := 3
 const PLAYER_INVINCIBLE_TIME := 2.0     ## Secondes d'invincibilité après un coup.
 const PLAYER_FIRE_COOLDOWN := 0.18      ## Secondes entre deux sorts.
@@ -77,7 +77,7 @@ const BOSS_POWER_SCALE := 0.3           ## Le boss gagne 30 % de vie par niveau 
 
 # Esprits.
 const SPIRIT_SPEED := 22.0             ## Vitesse d'approche vers la caméra.
-const SPIRIT_RADIUS := 1.2
+const SPIRIT_RADIUS := 1.5
 const SINE_AMPLITUDE := 4.0             ## Largeur de la vague.
 const SINE_FREQUENCY := 0.4             ## Vagues par seconde.
 const ZIGZAG_AMPLITUDE := 3.0
@@ -93,8 +93,8 @@ const SHOT_CANCEL_MARGIN := 0.7         ## Marge pour qu'un sort annule facileme
 const BOSS_NAME := "L'Esprit du Lac Nokoué"
 const BOSS_HEALTH := 60
 const BOSS_SCORE := 2000
-const BOSS_SCALE := 2.2
-const BOSS_HOVER_Z := -40.0
+const BOSS_SCALE := 3.0
+const BOSS_HOVER_Z := -26.0
 const BOSS_ENTER_SPEED := 25.0
 
 # Apparition et disparition des entités.

@@ -1,9 +1,12 @@
 class_name Spirit
 extends Enemy
 ## Un esprit de la nuit. Deux sortes pour l'instant :
-##   "feu_follet"   : pâle et vert, 1 coup, tire rarement.
-##   "esprit_rouge" : plus gros, 3 coups, tire plus souvent.
-## Il arrive du fond de l'avenue et fonce vers la caméra.
+##   "feu_follet"   : un crâne flottant à la lueur verte, 1 coup, tire rarement.
+##   "esprit_rouge" : un squelette spectral à la lueur rouge, plus gros, 3 coups, tire plus souvent.
+## Il arrive du fond de l'avenue et fonce vers la caméra. Modèles CC0 (voir assets/CREDITS.md).
+
+const SKULL := "res://assets/models/halloween/skull.gltf"
+const WARRIOR := "res://assets/models/characters/Skeleton_Warrior.glb"
 
 var kind := "feu_follet"
 var pattern := "linear"
@@ -15,7 +18,7 @@ var _elapsed := 0.0
 var _fire_timer := 0.0
 var _phase := 0.0
 var _pulse := 0.0
-var _core: MeshInstance3D
+var _core: Node3D          ## Le modèle, qui pulse un peu
 
 
 func setup(p_kind: String, p_pattern: String, p_origin: Vector3, p_game) -> void:
@@ -32,7 +35,7 @@ func setup(p_kind: String, p_pattern: String, p_origin: Vector3, p_game) -> void
 			health = 3
 			score = 300
 			drop_chance = 0.55
-			radius = 1.5
+			radius = 1.9
 			speed = GameConfig.SPIRIT_SPEED * 0.8
 			fire_cooldown = 1.4
 		_:
@@ -48,23 +51,29 @@ func setup(p_kind: String, p_pattern: String, p_origin: Vector3, p_game) -> void
 
 
 func _build() -> void:
-	_core = Fx.mesh(self, Fx.sphere(radius * 0.65), Fx.mat(color, 3.0))
-	var veil := Fx.mat(Color(color, 0.22), 1.5, true)
-	Fx.mesh(self, Fx.sphere(radius), veil)
-	# Traîne de l'esprit, derrière lui (il fonce vers la caméra).
-	Fx.mesh(self, Fx.cylinder(0.02, radius * 0.6, radius * 2.6), veil,
-			Vector3(0.0, 0.0, -radius * 1.4), Vector3(-PI / 2.0, 0.0, 0.0))
-	# Deux yeux sombres tournés vers la sorcière.
-	var eye := Fx.mat(Color(0.02, 0.0, 0.05))
-	for side in [-1.0, 1.0]:
-		Fx.mesh(self, Fx.sphere(radius * 0.14, 8), eye, Vector3(side * radius * 0.28, radius * 0.15, radius * 0.6))
+	_core = Node3D.new()
+	add_child(_core)
+	var model: Node3D
+	if kind == "esprit_rouge":
+		model = Models.load_scene(WARRIOR)
+		model.scale = Vector3.ONE * 1.2
+		Models.ghostify(model, color, 0.6)
+		Models.play(model, "Idle_Combat" if pattern == "hover" else "Running_A", true, randf_range(0.9, 1.15))
+	else:
+		model = Models.load_scene(SKULL)
+		model.scale = Vector3.ONE * 2.2
+		Models.ghostify(model, color, 0.9)
+	# Les modèles ont leurs pieds à l'origine : on les centre sur la position de l'esprit.
+	var box := Models.bounds(model)
+	model.position = -(box.position + box.size / 2.0) * model.scale
+	_core.add_child(model)
 
 
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
 	position = Patterns.compute(pattern, origin, _elapsed, speed)
 	_pulse = maxf(_pulse - delta * 4.0, 0.0)
-	_core.scale = Vector3.ONE * (1.0 + 0.12 * sin(_elapsed * 6.0 + _phase) + _pulse * 0.5)
+	_core.scale = Vector3.ONE * (1.0 + 0.05 * sin(_elapsed * 6.0 + _phase) + _pulse * 0.25)
 
 	_fire_timer -= delta
 	if _fire_timer <= 0.0:

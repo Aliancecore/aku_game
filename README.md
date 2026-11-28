@@ -37,7 +37,32 @@ Le découpage reprend celui de notre R-Type :
 | `scripts/city.gd` | l'avenue de Cotonou qui défile vers la caméra | `Starfield` |
 | `scripts/hud.gd` | score, vies, jauge de charge, barre du boss | `HudWidgets` |
 
-Tout est construit en code avec des formes simples : il n'y a pas encore de modèles 3D.
+Le décor, la sorcière et les esprits sont de vrais modèles 3D libres de droits (CC0), voir ci-dessous.
+Seuls les sorts, les bonus, le balai et le monument de l'Étoile Rouge sont encore construits en code.
+
+## Modèles 3D
+
+Tous viennent de packs CC0 (domaine public) ; les auteurs et les liens sont dans `assets/CREDITS.md`.
+
+| Quoi | Modèle |
+|---|---|
+| La sorcière | le mage de KayKit, avec ses animations (assise sur le balai, course). Sa peau et sa tenue sont recolorées : peau brune, chapeau vert, pagne orange, cape dorée |
+| Les feux follets | un crâne flottant, à la lueur verte |
+| Les esprits rouges et le boss | des squelettes (guerrier, mage) à la lueur rouge ou bleue |
+| La ville | immeubles, voitures, lampadaires (KayKit) et palmiers (Fábio S.C.) ; les fenêtres s'allument la nuit |
+
+Les outils pour retoucher ou vérifier tout ça sont dans `tools/` :
+
+```bash
+godot-4 --headless --path . --script res://tools/make_palettes.gd      # refait la palette de la sorcière et le masque des fenêtres
+godot-4 --path . --script res://tools/preview_witch.gd                 # la sorcière sous trois angles
+godot-4 --path . --script res://tools/preview_spirits.gd               # les esprits de face
+godot-4 --path . --script res://tools/preview_assets.gd                # tous les modèles côte à côte
+```
+
+Chaque outil écrit sa capture dans `.godot/shots/` (le Godot installé par snap ne peut écrire que dans le dossier personnel).
+Les petits shaders `shaders/ghost.gdshader` et `shaders/city_night.gdshader` gèrent la lueur des esprits et les fenêtres :
+l'émission par texture d'un `StandardMaterial3D` éclairait tout en blanc dans ce projet, d'où ces shaders.
 
 ## Atterrir et courir
 
@@ -101,6 +126,7 @@ godot-4 --path . -- --screenshot=$HOME/capture.png --level=2 --time=36 --delay=8
 `--level` et `--time` démarrent directement à un endroit du jeu (ici, le boss).
 `--view=2d` démarre en vue de côté. `--power=3` démarre avec tous les bonus cumulables au niveau 3.
 `--drop-all` fait lâcher un bonus à chaque esprit vaincu. `--run` démarre avec la sorcière à pied.
+`--no-fire` empêche le pilote automatique de tirer (pour regarder les esprits arriver).
 
 Test automatique de l'atterrissage et du décollage (envoie de vraies pressions de touches) :
 

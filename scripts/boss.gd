@@ -1,13 +1,16 @@
 class_name Boss
 extends Enemy
-## L'Esprit du Lac Nokoué : surgit du fond de l'avenue, flotte devant la sorcière,
-## et tire alternativement des gerbes visées et des cercles de boules.
+## L'Esprit du Lac Nokoué : un grand squelette-mage spectral. Il surgit du fond de l'avenue,
+## flotte devant la sorcière, et tire alternativement des gerbes visées et des cercles de boules.
+## Modèle CC0 (voir assets/CREDITS.md).
+
+const MODEL := "res://assets/models/characters/Skeleton_Mage.glb"
 
 var _elapsed := 0.0
 var _fire_timer := 2.5
 var _volley := 0
 var _flash := 0.0
-var _core_mat: StandardMaterial3D
+var _glow: Array[ShaderMaterial] = []   ## Matériaux du modèle, dont la lueur s'emballe quand il est touché
 var _orbs: Node3D
 var _ring: MeshInstance3D
 
@@ -17,7 +20,7 @@ func setup(p_game, y: float) -> void:
 	add_to_group("enemies")
 	health = GameConfig.BOSS_HEALTH
 	max_health = health
-	radius = 3.0 * GameConfig.BOSS_SCALE
+	radius = 2.6 * GameConfig.BOSS_SCALE
 	score = GameConfig.BOSS_SCORE
 	color = Color(0.3, 0.85, 1.0)
 	position = Vector3(0.0, y, game.spawn_z() - 30.0)
@@ -26,14 +29,13 @@ func setup(p_game, y: float) -> void:
 
 
 func _build() -> void:
-	_core_mat = Fx.mat(Color(0.12, 0.1, 0.35), 1.5)
-	_core_mat.emission = Color(0.2, 0.35, 0.9)
-	Fx.mesh(self, Fx.sphere(2.4, 24), _core_mat)
-	Fx.mesh(self, Fx.sphere(3.2, 24), Fx.mat(Color(0.3, 0.7, 1.0, 0.18), 1.0, true))
-
-	var eye := Fx.mat(Color(1.0, 0.15, 0.1), 6.0)
-	for side in [-1.0, 1.0]:
-		Fx.mesh(self, Fx.sphere(0.32, 10), eye, Vector3(side * 0.75, 0.45, 2.2))
+	var model := Models.load_scene(MODEL)
+	model.scale = Vector3.ONE * 2.0
+	_glow = Models.ghostify(model, Color(0.45, 0.7, 1.0), 0.22)
+	Models.play(model, "Spellcasting", true, 0.8)
+	var box := Models.bounds(model)
+	model.position = -(box.position + box.size / 2.0) * model.scale
+	add_child(model)
 
 	var ring := TorusMesh.new()
 	ring.inner_radius = 3.6
@@ -64,7 +66,8 @@ func _physics_process(delta: float) -> void:
 	_ring.rotation.y += delta * 0.8
 
 	_flash = maxf(_flash - delta * 5.0, 0.0)
-	_core_mat.emission_energy_multiplier = 1.5 + _flash * 6.0
+	for m in _glow:
+		m.set_shader_parameter("glow", 0.22 + _flash * 2.5)
 
 	_fire_timer -= delta
 	if _fire_timer <= 0.0 and absf(position.z - hover_z) < 1.0:

@@ -1,8 +1,10 @@
 class_name City
 extends Node3D
 ## Cotonou la nuit, vue depuis le balai : une grande avenue bordée d'immeubles,
-## de boutiques, de palmiers et de lampadaires, qui défile vers la caméra.
-## Au loin : la ligne des toits, la lune et les étoiles. Sur la route : des zémidjans.
+## de palmiers et de lampadaires, qui défile vers la caméra.
+## Au loin : la ligne des toits, la lune et les étoiles. Sur la route : des voitures.
+## Les immeubles, les voitures, les lampadaires et les palmiers sont des modèles CC0
+## (voir assets/CREDITS.md) ; leurs fenêtres s'allument la nuit grâce à un masque d'émission.
 
 const NEAR_Z := 30.0          ## Un élément qui dépasse la caméra repart au fond…
 const FAR_Z := -300.0         ## …à cette profondeur.
@@ -10,9 +12,19 @@ const ROAD_HALF := 4.0        ## Demi-largeur de la chaussée.
 const FRONT_ROW_X := 10.0     ## Façades de la première rangée d'immeubles.
 const BACK_ROW_X := 26.0      ## Deuxième rangée, plus haute, derrière.
 
+const CITY_DIR := "res://assets/models/city/"
+const NATURE_DIR := "res://assets/models/nature/"
+const BUILDINGS := ["A", "B", "C", "D", "E", "F", "G", "H"]
+const CARS := ["car_taxi", "car_sedan", "car_hatchback", "car_stationwagon"]
+const PALMS := ["ExoticPalmDefalt", "ExoticPalmOld", "ExoticPalmCurve", "ExoticPalmYoung"]
+const PALM_HEIGHT := 9.0      ## Hauteur voulue d'un palmier, en mètres.
+const CAR_HEIGHT := 1.6
+const LAMP_HEIGHT := 7.5
+
 var _scrolling: Node3D        ## Tout ce qui défile est enfant de ce nœud.
-var _motos: Array[Node3D] = []
-var _moto_speeds: Array[float] = []
+var _cars: Array[Node3D] = []
+var _car_speeds: Array[float] = []
+var _bounds := {}             ## Taille de chaque modèle, mesurée une seule fois.
 var _window_mesh: QuadMesh
 var _window_mats: Array[StandardMaterial3D] = []
 var _wall_mats: Array[StandardMaterial3D] = []
@@ -34,11 +46,11 @@ func _ready() -> void:
 	_build_ground()
 	_build_skyline()
 	for side in [-1.0, 1.0]:
-		_building_row(side, FRONT_ROW_X, Vector2(8, 16), Vector2(4, 13), 0.3, true)
-		_building_row(side, BACK_ROW_X, Vector2(10, 20), Vector2(10, 28), 0.18, false)
+		_building_row(side, FRONT_ROW_X, Vector2(7, 13), true)
+		_building_row(side, BACK_ROW_X, Vector2(14, 30), false)
 		_street_furniture(side)
 	_road_markings()
-	_build_motos()
+	_build_cars()
 
 
 ## Vue de côté : la caméra est du côté x > 0, on cache ce qui lui boucherait la vue.
@@ -55,9 +67,9 @@ func _process(delta: float) -> void:
 		n.position.z += step
 		if n.position.z > NEAR_Z:
 			n.position.z -= span
-	for i in _motos.size():
-		var m := _motos[i]
-		m.position.z += (_moto_speeds[i] + GameConfig.SCROLL_SPEED) * delta
+	for i in _cars.size():
+		var m := _cars[i]
+		m.position.z += (_car_speeds[i] + GameConfig.SCROLL_SPEED) * delta
 		if m.position.z > NEAR_Z:
 			m.position.z -= span
 		elif m.position.z < FAR_Z:
@@ -145,28 +157,61 @@ func _build_skyline() -> void:
 		add_child(b)
 
 
+## Taille d'un modèle (mesurée une fois, puis gardée).
+func _box_of(path: String) -> AABB:
+	if not _bounds.has(path):
+		var model := Models.load_scene(path)
+		_bounds[path] = Models.bounds(model)
+		model.free()
+	return _bounds[path]
+
+
+## Un modèle mis à l'échelle et posé dans un pivot, que l'appelant place ensuite.
+##   "centre"  : centré en x et z, base au sol (voitures)
+##   "facade"  : centré en x, façade (z max) à l'origine du pivot, base au sol (immeubles)
+##   "origine" : l'origine du modèle sert de pied (palmiers, lampadaires)
+func _place(path: String, scale: float, mode := "centre") -> Node3D:
+	var pivot := Node3D.new()
+	var model := Models.load_scene(path)
+	model.scale = Vector3.ONE * scale
+	var box := _box_of(path)
+	var cx := box.position.x + box.size.x / 2.0
+	var cz := box.position.z + box.size.z / 2.0
+	match mode:
+		"facade":
+			model.position = Vector3(-cx, -box.position.y, -(box.position.z + box.size.z)) * scale
+		"origine":
+			model.position = Vector3.ZERO
+		_:
+			model.position = Vector3(-cx, -box.position.y, -cz) * scale
+	pivot.add_child(model)
+	return pivot
+
+
 ## Une rangée d'immeubles le long de l'avenue. side = -1 à gauche, +1 à droite.
-func _building_row(side: float, x_front: float, length: Vector2, height: Vector2,
-		window_chance: float, with_shops: bool) -> void:
+## Chaque immeuble est un modèle choisi au hasard, agrandi jusqu'à une hauteur tirée dans `height`.
+func _building_row(side: float, x_front: float, height: Vector2, with_monument: bool) -> void:
 	var z := FAR_Z
 	var index := 0
 	while z < NEAR_Z:
-		var w := randf_range(length.x, length.y)
-		if with_shops and side < 0.0 and index == 6:
+		if with_monument and side < 0.0 and index == 6:
 			# Place de l'Étoile Rouge : une trouée dans la rangée de gauche.
 			var monument := _red_star_monument()
 			monument.position = Vector3(side * (x_front + 6.0), GameConfig.GROUND_Y, z + 15.0)
 			_scrolling.add_child(monument)
 			z += 30.0
 		else:
-			var d := randf_range(6, 10)
-			var h := randf_range(height.x, height.y)
-			var b := _building(w, h, d, _wall_mats.pick_random(), window_chance, with_shops)
-			# Le modèle a sa façade vers +Z : on la tourne vers la route.
+			var path: String = CITY_DIR + "building_%s_withoutBase.gltf" % BUILDINGS.pick_random()
+			var box := _box_of(path)
+			var scale := randf_range(height.x, height.y) / box.size.y
+			var width := box.size.x * scale
+			var b := _place(path, scale, "facade")
+			# La façade regarde vers +Z dans le modèle : on la tourne vers la route.
 			b.rotation.y = -side * PI / 2.0
-			b.position = Vector3(side * (x_front + d / 2.0), GameConfig.GROUND_Y, z + w / 2.0)
+			b.position = Vector3(side * x_front, GameConfig.GROUND_Y, z + width / 2.0)
+			Models.light_windows(b)
 			_scrolling.add_child(b)
-			z += w + randf_range(0.5, 3.0)
+			z += width + randf_range(0.3, 2.0)
 		index += 1
 
 
@@ -224,10 +269,6 @@ func _red_star_monument() -> Node3D:
 
 ## Lampadaires et palmiers en alternance au bord de la route.
 func _street_furniture(side: float) -> void:
-	var trunk_mat := Fx.mat(Color(0.14, 0.09, 0.05))
-	var leaf_mat := Fx.mat(Color(0.04, 0.16, 0.07))
-	var pole_mat := Fx.mat(Color(0.1, 0.1, 0.11))
-	var lamp_mat := Fx.mat(Color(1.0, 0.7, 0.35), 5.0)
 	var z := FAR_Z + (0.0 if side < 0.0 else 10.0)
 	var lamp := true
 	while z < NEAR_Z:
@@ -235,28 +276,25 @@ func _street_furniture(side: float) -> void:
 		_scrolling.add_child(item)
 		if lamp:
 			item.position = Vector3(side * (ROAD_HALF + 1.5), GameConfig.GROUND_Y, z)
-			Fx.mesh(item, Fx.cylinder(0.1, 0.14, 7.0), pole_mat, Vector3(0, 3.5, 0))
-			Fx.mesh(item, Fx.box(Vector3(1.6, 0.12, 0.12)), pole_mat, Vector3(-side * 0.7, 6.9, 0))
-			Fx.mesh(item, Fx.sphere(0.28, 10), lamp_mat, Vector3(-side * 1.4, 6.7, 0))
+			var path := CITY_DIR + "streetlight.gltf"
+			var post := _place(path, LAMP_HEIGHT / _box_of(path).size.y, "origine")
+			# Le bras du lampadaire part vers -X dans le modèle : on le tourne vers la route.
+			post.rotation.y = PI if side < 0.0 else 0.0
+			item.add_child(post)
 			var light := OmniLight3D.new()
 			light.light_color = Color(1.0, 0.62, 0.3)
 			light.light_energy = 3.0
 			light.omni_range = 11.0
-			light.position = Vector3(-side * 1.4, 6.2, 0)
+			light.position = Vector3(-side * 1.6, LAMP_HEIGHT * 0.9, 0)
 			item.add_child(light)
+			# Ampoule visible au bout du bras.
+			Fx.mesh(item, Fx.sphere(0.3, 10), Fx.mat(Color(1.0, 0.7, 0.35), 5.0), Vector3(-side * 1.6, LAMP_HEIGHT * 0.93, 0))
 		else:
-			item.position = Vector3(side * (ROAD_HALF + 3.0), GameConfig.GROUND_Y, z)
-			var h := randf_range(7.0, 10.0)
-			var lean := randf_range(0.05, 0.18) * side
-			Fx.mesh(item, Fx.cylinder(0.15, 0.26, h), trunk_mat, Vector3(-lean * h / 2.0, h / 2.0, 0), Vector3(0, 0, lean))
-			var crown := Node3D.new()
-			crown.position = Vector3(-lean * h, h, 0)
-			item.add_child(crown)
-			for i in 8:
-				var pivot := Node3D.new()
-				pivot.rotation.y = TAU * i / 8.0
-				crown.add_child(pivot)
-				Fx.mesh(pivot, Fx.box(Vector3(2.8, 0.06, 0.6)), leaf_mat, Vector3(1.3, -0.4, 0), Vector3(0, 0, -0.4))
+			item.position = Vector3(side * (ROAD_HALF + 3.2), GameConfig.GROUND_Y, z)
+			var path: String = NATURE_DIR + PALMS.pick_random() + ".fbx"
+			var palm := _place(path, PALM_HEIGHT / _box_of(path).size.y, "origine")
+			palm.rotation.y = randf() * TAU
+			item.add_child(palm)
 		lamp = not lamp
 		z += 12.0
 
@@ -270,26 +308,16 @@ func _road_markings() -> void:
 		z += 7.0
 
 
-## Zémidjans (motos-taxis) : chemise jaune, phare blanc devant, feu rouge derrière.
-func _build_motos() -> void:
-	var body_mat := Fx.mat(Color(0.08, 0.08, 0.08))
-	var shirt := Fx.mat(Color(0.95, 0.8, 0.1))
-	var skin := Fx.mat(Color(0.25, 0.15, 0.09))
-	var head := Fx.mat(Color(1.0, 0.95, 0.8), 6.0)
-	var tail := Fx.mat(Color(1.0, 0.1, 0.05), 4.0)
+## Voitures sur la route, dans les deux sens : la moitié s'éloigne, l'autre vient vers nous.
+func _build_cars() -> void:
 	for i in 10:
-		var away := i % 2 == 0        # la moitié s'éloigne, l'autre vient vers nous
-		var m := Node3D.new()
-		m.position = Vector3(1.8 if away else -1.8, GameConfig.GROUND_Y, randf_range(FAR_Z, 0.0))
-		m.rotation.y = PI / 2.0 if away else -PI / 2.0
-		add_child(m)
-		Fx.mesh(m, Fx.box(Vector3(1.4, 0.35, 0.25)), body_mat, Vector3(0, 0.55, 0))
-		for wx in [0.6, -0.6]:
-			Fx.mesh(m, Fx.cylinder(0.25, 0.25, 0.1), body_mat, Vector3(wx, 0.25, 0), Vector3(PI / 2.0, 0, 0))
-		Fx.mesh(m, Fx.box(Vector3(0.35, 0.7, 0.4)), shirt, Vector3(-0.1, 1.05, 0))
-		Fx.mesh(m, Fx.sphere(0.17, 8), skin, Vector3(-0.05, 1.55, 0))
-		Fx.mesh(m, Fx.sphere(0.13, 8), head, Vector3(0.75, 0.75, 0))
-		Fx.mesh(m, Fx.sphere(0.09, 8), tail, Vector3(-0.75, 0.65, 0))
-		_motos.append(m)
+		var away := i % 2 == 0
+		var path: String = CITY_DIR + CARS.pick_random() + ".gltf"
+		var car := _place(path, CAR_HEIGHT / _box_of(path).size.y, "centre")
+		# Le devant de la voiture est à +Z dans le modèle : on la tourne dans le sens de la marche.
+		car.rotation.y = PI if away else 0.0
+		car.position = Vector3(1.8 if away else -1.8, GameConfig.GROUND_Y, randf_range(FAR_Z, 0.0))
+		add_child(car)
+		_cars.append(car)
 		var speed := randf_range(8.0, 14.0)
-		_moto_speeds.append(-speed if away else speed)
+		_car_speeds.append(-speed if away else speed)

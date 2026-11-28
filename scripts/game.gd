@@ -39,6 +39,7 @@ var _start_time := 0.0
 var _start_side := false
 var _start_power := 0
 var _start_run := false
+var _no_fire := false           ## Le pilote automatique ne tire pas (pour regarder les esprits).
 var _drop_all := false          ## Chaque esprit vaincu lâche un bonus (pour tester).
 var _auto_t := 0.0
 
@@ -160,9 +161,10 @@ func _follow_camera(delta: float) -> void:
 
 	var p := witch.position
 	var follow := GameConfig.CAMERA_FOLLOW
-	var behind := Vector3(p.x * follow, p.y * follow * 0.8 + GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
+	# La caméra suit presque toute la hauteur de la sorcière : à pied, au ras du sol, elle reste dans le cadre.
+	var behind := Vector3(p.x * follow, p.y * 0.9 + GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
 	_cam_behind = _cam_behind.lerp(behind, 1.0 - exp(-6.0 * delta))
-	var look_behind := Vector3(p.x * 0.35, p.y * 0.35 + 1.8, -40.0)
+	var look_behind := Vector3(p.x * 0.35, p.y * 0.6 + 1.5, -40.0)
 
 	_camera.position = _cam_behind.lerp(GameConfig.SIDE_CAMERA, k)
 	_camera.fov = lerpf(GameConfig.CAMERA_FOV, GameConfig.SIDE_FOV, k)
@@ -526,6 +528,8 @@ func _read_cli() -> void:
 		elif arg.begins_with("--screenshot="):
 			_shot_path = value
 			_autoplay = true
+		elif arg == "--no-fire":
+			_no_fire = true
 		elif arg == "--run":
 			_start_run = true
 		elif arg == "--drop-all":
@@ -550,7 +554,7 @@ func _autoplay_step(delta: float) -> void:
 		witch.position.x = sin(_auto_t * 0.6) * 5.0
 	if not witch.on_ground():
 		witch.position.y = 1.0 + sin(_auto_t * 0.9) * 3.0
-	if int(_auto_t * 5.0) % 2 == 0:
+	if int(_auto_t * 5.0) % 2 == 0 and not _no_fire:
 		Input.action_press("shoot")
 	else:
 		Input.action_release("shoot")
