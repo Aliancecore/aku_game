@@ -7,32 +7,32 @@ extends RefCounted
 ## La caméra est derrière elle (z positif). Les esprits arrivent du fond.
 
 # Caméra (derrière la sorcière, elle la suit en partie).
-const CAMERA_Z := 6.0
-const CAMERA_HEIGHT := 2.0
+const CAMERA_Z := 4.8
+const CAMERA_HEIGHT := 1.7
 const CAMERA_FOV := 70.0
 const CAMERA_FOLLOW := 0.6              ## Part du déplacement de la sorcière que la caméra suit.
 
 # Vue de côté (touche P), façon R-Type : la caméra passe sur le côté, les esprits
 # arrivent de la droite (le -Z du jeu devient la droite de l'écran).
-const SIDE_CAMERA := Vector3(28.0, 2.0, -7.0)
-const SIDE_LOOK := Vector3(0.0, 0.0, -7.0)
+const SIDE_CAMERA := Vector3(22.0, 1.0, -6.0)
+const SIDE_LOOK := Vector3(0.0, -0.8, -6.0)
 const SIDE_FOV := 28.0
-const SIDE_Z_RANGE := Vector2(-10.0, 3.0)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
-const SIDE_VIEW_FAR_Z := -19.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
+const SIDE_Z_RANGE := Vector2(-9.0, 2.5)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
+const SIDE_VIEW_FAR_Z := -15.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
 const SIDE_SPAWN_Z := -45.0                 ## Apparition juste hors écran, pour que ça arrive vite.
-const SIDE_HOVER_Z := -14.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
-const SIDE_BOSS_HOVER_Z := -15.0
+const SIDE_HOVER_Z := -11.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
+const SIDE_BOSS_HOVER_Z := -12.0
 const VIEW_BLEND_SPEED := 2.5               ## Vitesse du changement de vue (1 / seconde).
 
 # Zone de vol de la sorcière, dans le plan z = 0.
 const PLAY_MIN := Vector2(-9.0, -4.0)
-const PLAY_MAX := Vector2(9.0, 5.5)
+const PLAY_MAX := Vector2(9.0, 4.2)
 const GROUND_Y := -6.0
 
 # Atterrissage et course : près du sol, la sorcière descend et court. Deux appuis rapides
 # sur la flèche du haut la font décoller.
 const LAND_TRIGGER_Y := -3.3            ## En vol, à cette hauteur ou moins, elle atterrit.
-const RUN_HEIGHT := 0.95                ## Hauteur de son centre au-dessus du sol quand elle court (elle mesure 1,9 m).
+const RUN_HEIGHT := 0.9                 ## Hauteur de son centre au-dessus du sol quand elle court (1,72 m sans chapeau).
 const RUN_Y := GROUND_Y + RUN_HEIGHT
 const LAND_SPEED := 9.0                 ## Vitesse de descente (mètres par seconde).
 const TAKEOFF_SPEED := 12.0             ## Vitesse de montée au décollage.

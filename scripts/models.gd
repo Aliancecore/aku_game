@@ -4,8 +4,6 @@ extends RefCounted
 ## et petites retouches de matériau (texture de remplacement, lueur d'esprit).
 ## Les modèles viennent de packs libres CC0 : voir assets/CREDITS.md.
 
-const MAGE := "res://assets/models/characters/Mage.glb"
-const WITCH_TEXTURE := "res://assets/models/characters/witch_palette.png"
 const CITY_EMISSION := "res://assets/models/city/citybits_emission.png"
 const GHOST_SHADER := "res://shaders/ghost.gdshader"
 const CITY_SHADER := "res://shaders/city_night.gdshader"
@@ -60,6 +58,24 @@ static func hide(node: Node, node_name: String) -> void:
 	var target := node.find_child(node_name, true, false)
 	if target is Node3D:
 		(target as Node3D).visible = false
+
+
+## Change des matériaux du modèle d'après leur nom (ex. "Skin", "Dress"). Chaque valeur est une couleur
+## (le matériau d'origine est copié avec cette couleur) ou un matériau complet qui le remplace.
+static func paint(node: Node, overrides: Dictionary) -> void:
+	for mi in node.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		for s in m.mesh.get_surface_count():
+			var base := m.get_active_material(s)
+			if base == null or not overrides.has(String(base.resource_name)):
+				continue
+			var value = overrides[String(base.resource_name)]
+			if value is Color:
+				var copy := base.duplicate() as StandardMaterial3D
+				copy.albedo_color = value
+				m.set_surface_override_material(s, copy)
+			elif value is Material:
+				m.set_surface_override_material(s, value)
 
 
 ## Remplace la texture de tous les matériaux du modèle par une autre (ex. une palette recolorée).

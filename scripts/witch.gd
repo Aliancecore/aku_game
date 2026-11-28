@@ -27,18 +27,18 @@ var _charging := false
 var _time := 0.0
 var _last_up_tap := -10.0  ## Moment du dernier appui sur la flèche du haut (double appui = décollage).
 var _tilt: Node3D          ## Roulis et tangage quand elle se déplace.
-var _body: Node3D          ## Le modèle en vol : le mage assis sur son balai.
+var _body: Node3D          ## Le modèle en vol : elle assise sur son balai, avec son chat.
 var _runner: Node3D        ## Le modèle debout, pour la course.
-var _runner_mage: Node3D
+var _runner_model: Node3D  ## Le modèle animé de la sorcière à pied (pour changer d'animation).
 var _jump_t := -1.0        ## Temps écoulé depuis le début du saut (négatif = elle ne saute pas).
 var _hit_timer := 0.0      ## Temps restant de l'animation de choc.
 var _anim := ""            ## Animation en cours à pied.
 var _charge_orb: MeshInstance3D
 var _shield_mesh: MeshInstance3D
 
-const MODEL_SCALE := 0.63  ## Le mage mesure 3 m dans le pack : à cette échelle, chapeau compris, il fait 1,9 m,
-							## la taille d'une vraie personne à côté d'une voiture (1,6 m).
-const SEAT_HEIGHT := 0.55  ## Hauteur du balai sous le mage assis, avant mise à l'échelle (réglée à l'œil avec tools/preview_witch.gd).
+const ANIM_RUN := "HumanArmature|Female_Run"
+const ANIM_JUMP := "HumanArmature|Female_Jump"
+const ANIM_HIT := "HumanArmature|Female_Death"
 
 
 func _ready() -> void:
@@ -65,68 +65,50 @@ func _ready() -> void:
 	_shield_mesh.visible = false
 
 
-## Le mage tel qu'il vient du pack, avec la peau et la tenue recolorées (voir tools/make_palettes.gd).
-## Ses accessoires inutiles (livres, bâton) sont cachés : il garde sa baguette.
-func _new_mage(animation: String) -> Node3D:
-	var mage := Models.load_scene(Models.MAGE)
-	mage.scale = Vector3.ONE * MODEL_SCALE
-	mage.rotation.y = PI   # le modèle regarde +Z, la sorcière avance vers -Z
-	for accessory in ["Spellbook", "Spellbook_open", "2H_Staff"]:
-		Models.hide(mage, accessory)
-	Models.retexture(mage, Models.WITCH_TEXTURE)
-	Models.play(mage, animation)
-	return mage
-
-
-## En vol : assise sur un balai, qui file vers le fond de l'avenue.
+## En vol : assise sur son balai, avec son chat noir derrière elle. WitchLook fabrique tout, en mètres.
 func _build_flying() -> void:
 	_body = Node3D.new()
+	_body.position.y = -0.45          # ses pieds pendent à 0,45 m sous son centre ; le balai passe juste en dessous de lui
 	_tilt.add_child(_body)
-	var mage := _new_mage("Sit_Chair_Idle")
-	mage.position.y = -SEAT_HEIGHT * 0.0
-	_body.add_child(mage)
+	var rider := WitchLook.riding()
+	_body.add_child(rider)
 
-	# Le balai : un manche, un lien et des brins de paille à l'arrière.
-	var wood := Fx.mat(Color(0.45, 0.28, 0.13))
-	var straw := Fx.mat(Color(0.88, 0.7, 0.34))
-	var band := Fx.mat(Color(0.95, 0.42, 0.05))
-	var broom := Node3D.new()
-	broom.scale = Vector3.ONE * MODEL_SCALE
-	broom.position = Vector3(0, SEAT_HEIGHT * MODEL_SCALE, 0)
-	_body.add_child(broom)
-	Fx.mesh(broom, Fx.cylinder(0.07, 0.07, 3.4), wood, Vector3(0, 0, -0.1), Vector3(PI / 2.0, 0, 0))
-	Fx.mesh(broom, Fx.cylinder(0.12, 0.38, 1.0), straw, Vector3(0, 0, 2.05), Vector3(-PI / 2.0, 0, 0))
-	Fx.mesh(broom, Fx.cylinder(0.13, 0.13, 0.12), band, Vector3(0, 0, 1.55), Vector3(PI / 2.0, 0, 0))
-
-	# Étincelles qui tombent de la paille.
+	# Étincelles qui tombent des brins du balai, et une lueur violette à l'avant.
 	var sparks := GPUParticles3D.new()
-	sparks.amount = 24
-	sparks.lifetime = 0.5
+	sparks.amount = 28
+	sparks.lifetime = 0.55
 	sparks.local_coords = false
 	var pm := ParticleProcessMaterial.new()
 	pm.direction = Vector3(0, 0, 1)
-	pm.spread = 20.0
-	pm.initial_velocity_min = 0.5
-	pm.initial_velocity_max = 1.5
+	pm.spread = 22.0
+	pm.initial_velocity_min = 0.6
+	pm.initial_velocity_max = 1.8
 	pm.gravity = Vector3(0, -2.0, 0)
 	pm.scale_min = 0.4
-	pm.scale_max = 0.8
+	pm.scale_max = 0.9
 	sparks.process_material = pm
-	var spark_mesh := Fx.sphere(0.04, 6)
-	spark_mesh.material = Fx.mat(Color(1.0, 0.75, 0.3), 3.0)
+	var spark_mesh := Fx.sphere(0.035, 6)
+	spark_mesh.material = Fx.mat(Color(1.0, 0.75, 0.3), 3.5)
 	sparks.draw_pass_1 = spark_mesh
-	sparks.position = Vector3(0, 0, 2.6)
-	broom.add_child(sparks)
+	sparks.position = Vector3(0, WitchLook.SEAT, WitchLook.BROOM_Z + 1.5)
+	rider.add_child(sparks)
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.65, 0.4, 1.0)
+	glow.light_energy = 1.4
+	glow.omni_range = 3.5
+	glow.position = Vector3(0, WitchLook.SEAT, WitchLook.BROOM_Z - 1.0)
+	rider.add_child(glow)
 
 
-## À pied : la même sorcière, debout, avec l'animation de course du pack.
+## À pied : la même sorcière, debout, le balai en bandoulière dans le dos, avec l'animation de course.
 func _build_runner() -> void:
 	_runner = Node3D.new()
 	_runner.position.y = -GameConfig.RUN_HEIGHT
 	_runner.visible = false
 	_tilt.add_child(_runner)
-	_runner_mage = _new_mage("Running_A")
-	_runner.add_child(_runner_mage)
+	var runner := WitchLook.running()
+	_runner.add_child(runner)
+	_runner_model = runner.get_meta("model")
 
 
 func _physics_process(delta: float) -> void:
@@ -288,18 +270,24 @@ func react_hit() -> void:
 		_hit_timer = 0.6
 
 
-## Choisit l'animation à pied : course, saut en l'air, ou choc.
+## Choisit l'animation à pied : course, saut en l'air, ou chute après un choc.
 func _update_animation() -> void:
-	if not on_ground() or _runner_mage == null:
+	if not on_ground() or _runner_model == null:
 		return
-	var wanted := "Running_A"
+	var wanted := ANIM_RUN
 	if _hit_timer > 0.0:
-		wanted = "Hit_A"
+		wanted = ANIM_HIT
 	elif _jump_t >= 0.0:
-		wanted = "Jump_Idle"
+		wanted = ANIM_JUMP
 	if wanted != _anim:
 		_anim = wanted
-		Models.play(_runner_mage, wanted, wanted != "Hit_A")
+		match wanted:
+			ANIM_HIT:
+				Models.play(_runner_model, wanted, false, 2.0)
+			ANIM_JUMP:
+				Models.play(_runner_model, wanted, false, 1.04 / GameConfig.JUMP_TIME)   # l'animation dure 1,04 s : on la cale sur le saut
+			_:
+				Models.play(_runner_model, wanted, true, 1.0)
 
 
 ## Point de départ des sorts : le bout du balai en vol, la main à pied.

@@ -39,7 +39,16 @@ func _run() -> void:
 
 	witch.start_running()
 	await physics_frame
-	_check("la sorcière mesure 1,9 m et la voiture 1,6 m (taille réaliste)", absf(Models.bounds(Models.load_scene(Models.MAGE)).size.y * Witch.MODEL_SCALE - 1.9) < 0.1)
+	# Sa taille : le haut de sa tête, mesuré sur son squelette, doit être celui d'une vraie femme, plus grande qu'une voiture (1,6 m).
+	var look := WitchLook.woman("HumanArmature|Female_Idle")
+	root.add_child(look)
+	var skeleton := look.get_meta("skeleton") as Skeleton3D
+	var player := look.get_meta("player") as AnimationPlayer
+	player.seek(0.0, true)
+	skeleton.force_update_all_bone_transforms()
+	var head_top: float = (skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone("Head_end"))).origin.y
+	look.queue_free()
+	_check("elle mesure %.2f m (1,6 à 1,9 m) et la voiture %.1f m : tailles réalistes" % [head_top, City.CAR_HEIGHT], head_top > 1.6 and head_top < 1.9)
 
 	# 1. À pied, au sol : la voiture la renverse.
 	var lives0: int = game.lives
@@ -91,13 +100,21 @@ func _run() -> void:
 	game._check_obstacles()
 	_check("une voiture 3 m à côté : pas de choc", game.lives == lives2)
 
-	# 7. En vue 2D la profondeur est ignorée : la même voiture la touche.
+	# 7. En vue 2D la profondeur est ignorée : une voiture de la voie du fond (visible) la touche, même à 3 m de côté.
+	car.position = Vector3(witch.position.x - 3.0, GameConfig.GROUND_Y, witch.position.z)
 	game._set_side_view(true, false)
-	car.position = Vector3(witch.position.x + 3.0, GameConfig.GROUND_Y, witch.position.z)
 	game._check_obstacles()
-	_check("vue 2D : la voiture (voie de derrière) la touche quand même", game.lives == lives2 - 1)
+	_check("vue 2D : une voiture de la voie du fond la touche", game.lives == lives2 - 1)
 
-	# 8. Les saut est assez haut pour passer une voiture : on le vérifie sur la courbe.
+	# 8. Les voitures de la voie proche de la caméra sont cachées en 2D : elles ne comptent pas (pas de choc invisible).
+	witch.invincible = 0.0
+	var lives3: int = game.lives
+	car.position = Vector3(witch.position.x + 3.0, GameConfig.GROUND_Y, witch.position.z)
+	city.set_side_view(true)
+	game._check_obstacles()
+	_check("vue 2D : une voiture cachée (voie proche) ne la touche pas", game.lives == lives3)
+
+	# 9. Le saut est assez haut pour passer une voiture : on le vérifie sur la courbe.
 	var best := 0.0
 	for i in 100:
 		var t := GameConfig.JUMP_TIME * i / 99.0

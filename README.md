@@ -38,7 +38,7 @@ Le découpage reprend celui de notre R-Type :
 | `scripts/hud.gd` | score, vies, jauge de charge, barre du boss | `HudWidgets` |
 
 Le décor, la sorcière et les esprits sont de vrais modèles 3D libres de droits (CC0), voir ci-dessous.
-Seuls les sorts, les bonus, le balai et le monument de l'Étoile Rouge sont encore construits en code.
+Seuls les sorts, les bonus, le balai, le chapeau, le foulard et le monument de l'Étoile Rouge sont construits en code.
 
 ## Modèles 3D
 
@@ -46,7 +46,7 @@ Tous viennent de packs CC0 (domaine public) ; les auteurs et les liens sont dans
 
 | Quoi | Modèle |
 |---|---|
-| La sorcière | le mage de KayKit, avec ses animations (assise sur le balai, course). Sa peau et sa tenue sont recolorées : peau brune, chapeau vert, pagne orange, cape dorée |
+| La sorcière | une femme animée (Quaternius), à la **peau foncée**, en **robe wax** (motif de cercles, fait par `shaders/wax.gdshader`). Chapeau pointu noir et or, foulard wax qui flotte, balai à lueur violette, et son **chat noir** aux yeux verts. En vol elle est assise sur le balai ; à pied elle court, le balai dans le dos. Elle mesure 1,72 m sans le chapeau |
 | Les feux follets | un crâne flottant, à la lueur verte |
 | Les esprits rouges et le boss | des squelettes (guerrier, mage) à la lueur rouge ou bleue |
 | La ville | immeubles, voitures, lampadaires (KayKit) et palmiers (Fábio S.C.) ; les fenêtres s'allument la nuit |
@@ -54,8 +54,8 @@ Tous viennent de packs CC0 (domaine public) ; les auteurs et les liens sont dans
 Les outils pour retoucher ou vérifier tout ça sont dans `tools/` :
 
 ```bash
-godot-4 --headless --path . --script res://tools/make_palettes.gd      # refait la palette de la sorcière et le masque des fenêtres
-godot-4 --path . --script res://tools/preview_witch.gd                 # la sorcière sous trois angles
+godot-4 --headless --path . --script res://tools/make_palettes.gd      # refait le masque qui allume les fenêtres
+godot-4 --path . --script res://tools/preview_look.gd                  # la sorcière : assise, de côté, de dos, à pied
 godot-4 --path . --script res://tools/preview_spirits.gd               # les esprits de face
 godot-4 --path . --script res://tools/preview_assets.gd                # tous les modèles côte à côte
 ```

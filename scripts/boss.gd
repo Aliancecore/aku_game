@@ -58,10 +58,14 @@ func _build() -> void:
 
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
+	# En vue 2D l'écran est bien plus petit : le boss y est réduit à 30 % (son corps et sa zone de touche).
+	var k := 0.3 if game.side_view else 1.0
+	scale = Vector3.ONE * GameConfig.BOSS_SCALE * k
+	radius = 2.6 * GameConfig.BOSS_SCALE * k
 	var hover_z: float = game.boss_hover_z()
 	position.z = move_toward(position.z, hover_z, GameConfig.BOSS_ENTER_SPEED * delta)
 	position.x = 6.0 * sin(_elapsed * 0.45)
-	position.y = 2.5 + 3.0 * sin(_elapsed * 0.7)
+	position.y = (-0.2 + 0.9 * sin(_elapsed * 0.7)) if game.side_view else (2.5 + 3.0 * sin(_elapsed * 0.7))
 	_orbs.rotation.z += delta * 1.2
 	_ring.rotation.y += delta * 0.8
 

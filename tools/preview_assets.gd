@@ -4,7 +4,8 @@ extends SceneTree
 ## (Le Godot installé par snap ne peut écrire que dans le dossier personnel.)
 
 const MODELS := [
-	["Mage", "res://assets/models/characters/Mage.glb"],
+	["Cat", "res://assets/models/witch/Cat.fbx"],
+	["Woman", "res://assets/models/witch/Woman_Run.fbx"],
 	["Skeleton_Minion", "res://assets/models/characters/Skeleton_Minion.glb"],
 	["Skeleton_Warrior", "res://assets/models/characters/Skeleton_Warrior.glb"],
 	["Skeleton_Mage", "res://assets/models/characters/Skeleton_Mage.glb"],
