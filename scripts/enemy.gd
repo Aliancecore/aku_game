@@ -8,6 +8,7 @@ var health := 1
 var max_health := 1
 var radius := 1.0
 var score := 100
+var drop_chance := 0.0      ## Probabilité de lâcher un bonus quand il est vaincu.
 var color := Color.WHITE
 
 

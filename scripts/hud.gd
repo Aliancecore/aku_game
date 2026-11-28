@@ -12,6 +12,9 @@ var _charge: ProgressBar
 var _boss_bar: ProgressBar
 var _boss_name: Label
 var _level_timer := 0.0
+var _bonus_label: Label
+var _toast: Label
+var _toast_timer := 0.0
 
 
 func _ready() -> void:
@@ -19,11 +22,19 @@ func _ready() -> void:
 	_score.position = Vector2(24, 16)
 	_lives = _label(26)
 	_lives.position = Vector2(24, 50)
+	_bonus_label = _label(20)
+	_bonus_label.position = Vector2(24, 90)
+
+	_toast = _label(32)
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.anchor_right = 1.0
+	_toast.offset_top = 200
+	_toast.visible = false
 
 	_level = _label(34)
 	_level.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_level.anchor_right = 1.0
-	_level.offset_top = 90
+	_level.offset_top = 140
 	_level.visible = false
 
 	var charge_label := _label(18)
@@ -69,6 +80,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _toast_timer > 0.0:
+		_toast_timer -= delta
+		_toast.modulate.a = clampf(_toast_timer / 0.5, 0.0, 1.0)
+		_toast.visible = _toast_timer > 0.0
 	if _level_timer > 0.0:
 		_level_timer -= delta
 		_level.modulate.a = clampf(_level_timer, 0.0, 1.0)
@@ -84,6 +99,20 @@ func update_stats(score: int, lives: int, charge_ratio: float, boss: Enemy) -> v
 	_boss_name.visible = has_boss
 	if has_boss:
 		_boss_bar.value = 100.0 * boss.health / boss.max_health
+
+
+## Liste des bonus actifs, sous les vies.
+func set_bonuses(text: String) -> void:
+	_bonus_label.text = text
+
+
+## Petit message coloré quand on ramasse un bonus.
+func toast(text: String, color: Color) -> void:
+	_toast.text = text
+	_toast.add_theme_color_override("font_color", color.lightened(0.3))
+	_toast_timer = 1.6
+	_toast.modulate.a = 1.0
+	_toast.visible = true
 
 
 func flash(text: String) -> void:

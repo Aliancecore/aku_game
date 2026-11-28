@@ -37,6 +37,8 @@ var _shot_delay := 6.0
 var _start_level := 0
 var _start_time := 0.0
 var _start_side := false
+var _start_power := 0
+var _drop_all := false          ## Chaque esprit vaincu lâche un bonus (pour tester).
 var _auto_t := 0.0
 
 
@@ -69,6 +71,8 @@ func _ready() -> void:
 			+ "Maintenir Espace : sort chargé     P : vue 3D / 2D\n\nEntrée pour commencer")
 
 	_read_cli()
+	for kind in witch.power:
+		witch.power[kind] = _start_power
 	if _start_side:
 		_set_side_view(true, false)
 		_view_blend = 1.0
@@ -95,6 +99,7 @@ func _process(delta: float) -> void:
 	_reticle.position = witch.muzzle() + Vector3(0, 0, -GameConfig.RETICLE_DISTANCE)
 	_reticle.visible = witch.controls_enabled and not side_view
 	hud.update_stats(score, lives, witch.charge / GameConfig.CHARGE_TIME, boss)
+	hud.set_bonuses(_bonus_text())
 
 
 func _physics_process(delta: float) -> void:
@@ -104,8 +109,10 @@ func _physics_process(delta: float) -> void:
 		State.PLAYING:
 			_run_level(delta)
 			_check_collisions()
+			_update_bonuses(delta)
 		State.LEVEL_CLEAR:
 			_check_collisions()
+			_update_bonuses(delta)
 			_clear_timer -= delta
 			if _clear_timer <= 0.0:
 				_load_level(level_index + 1)
@@ -221,6 +228,9 @@ func _spawn_wave(wave: Dictionary) -> void:
 	if kind == "boss":
 		boss = Boss.new()
 		boss.setup(self, y)
+		# Plus la sorcière a de bonus, plus le boss est résistant : le combat reste un défi.
+		boss.health = int(boss.health * (1.0 + GameConfig.BOSS_POWER_SCALE * witch.total_power()))
+		boss.max_health = boss.health
 		world.add_child(boss)
 		hud.flash(GameConfig.BOSS_NAME)
 		return
@@ -324,7 +334,65 @@ func _kill_enemy(enemy: Enemy) -> void:
 			_burst(enemy.position + offset, enemy.color, 10.0)
 		for shot in get_tree().get_nodes_in_group("enemy_shots"):
 			shot.queue_free()
+	elif _drop_all or randf() < enemy.drop_chance:
+		var bonus := Bonus.new()
+		bonus.setup(Bonus.random_kind(), enemy.position)
+		world.add_child(bonus)
 	enemy.queue_free()
+
+
+# --- Bonus ------------------------------------------------------------------------
+
+## Attire les bonus proches de la sorcière et les ramasse quand elle les touche.
+func _update_bonuses(delta: float) -> void:
+	if not witch.controls_enabled:
+		return
+	for node in get_tree().get_nodes_in_group("bonuses"):
+		var bonus := node as Bonus
+		if bonus.is_queued_for_deletion():
+			continue
+		var to := _flat(witch.position) - _flat(bonus.position)
+		var dist := to.length()
+		if dist < witch.radius + GameConfig.BONUS_PICKUP_RADIUS:
+			_collect(bonus)
+		elif dist < GameConfig.BONUS_MAGNET_RANGE:
+			bonus.position += to.normalized() * GameConfig.BONUS_MAGNET_SPEED * delta
+
+
+func _collect(bonus: Bonus) -> void:
+	var info: Dictionary = Bonus.KINDS[bonus.kind]
+	var text: String = info["label"]
+	match bonus.kind:
+		"vie":
+			if lives < GameConfig.MAX_LIVES:
+				lives += 1
+				text = "+1 VIE"
+			else:
+				score += 500
+				text = "VIE MAX  +500"
+		"bouclier":
+			witch.apply_bonus("bouclier")
+			text = "BOUCLIER"
+		_:
+			if witch.apply_bonus(bonus.kind):
+				text = "%s +%d" % [text, witch.power[bonus.kind]]
+			else:
+				score += 200
+				text = "%s MAX  +200" % text
+	_burst(bonus.position, info["color"], 2.5)
+	hud.toast(text, info["color"])
+	bonus.queue_free()
+
+
+## Les bonus actifs, pour l'affichage sous les vies.
+func _bonus_text() -> String:
+	var parts: Array[String] = []
+	for kind in witch.power:
+		if witch.power[kind] > 0:
+			parts.append("%s +%d" % [str(Bonus.KINDS[kind]["label"]).capitalize(), witch.power[kind]])
+	if witch.shield > 0.0:
+		parts.append("Bouclier %d s" % ceili(witch.shield))
+	return "   ".join(parts)
 
 
 func _hurt_player() -> void:
@@ -348,17 +416,27 @@ func _burst(pos: Vector3, color: Color, size: float) -> void:
 # --- Tirs ---------------------------------------------------------------------
 
 func _on_witch_fired(pos: Vector3, charged: bool) -> void:
-	var shot: Shot
 	if charged:
-		shot = Shot.make(pos, Vector3(0, 0, -GameConfig.CHARGED_SHOT_SPEED), Color(1.0, 0.35, 0.9),
+		var big := Shot.make(pos, Vector3(0, 0, -GameConfig.CHARGED_SHOT_SPEED), Color(1.0, 0.35, 0.9),
 				GameConfig.CHARGED_SHOT_RADIUS, "player_shots")
-		shot.damage = GameConfig.CHARGED_SHOT_DAMAGE
-		shot.piercing = true
-	else:
-		shot = Shot.make(pos, Vector3(0, 0, -GameConfig.SHOT_SPEED), Color(1.0, 0.8, 0.3),
-				GameConfig.SHOT_RADIUS, "player_shots")
-		shot.scale = Vector3(1.0, 1.0, 3.0)
-	world.add_child(shot)
+		big.damage = GameConfig.CHARGED_SHOT_DAMAGE + 2 * witch.power["force"]
+		big.piercing = true
+		world.add_child(big)
+		return
+
+	# Le bonus Boules ajoute des boules de feu en éventail. On l'ouvre dans le sens visible :
+	# à l'horizontale en vue 3D (derrière la sorcière), à la verticale en vue 2D (de côté).
+	var count := witch.shot_count()
+	var fan_axis := Vector3.RIGHT if side_view else Vector3.UP
+	var lateral := Vector3.UP if side_view else Vector3.RIGHT
+	for i in count:
+		var k := i - (count - 1) / 2.0
+		var dir := Vector3(0, 0, -1).rotated(fan_axis, k * GameConfig.SHOT_SPREAD_ANGLE)
+		var shot := Shot.make(pos + lateral * k * GameConfig.SHOT_SPREAD_OFFSET, dir * GameConfig.SHOT_SPEED,
+				Color(1.0, 0.8, 0.3), GameConfig.SHOT_RADIUS, "player_shots")
+		shot.damage = witch.damage()
+		shot.basis = Basis.looking_at(dir, Vector3.UP).scaled_local(Vector3(1.0, 1.0, 3.0))
+		world.add_child(shot)
 
 
 ## Un esprit tire une boule vers la sorcière.
@@ -441,6 +519,10 @@ func _read_cli() -> void:
 		elif arg.begins_with("--screenshot="):
 			_shot_path = value
 			_autoplay = true
+		elif arg == "--drop-all":
+			_drop_all = true
+		elif arg.begins_with("--power="):
+			_start_power = clampi(int(value), 0, GameConfig.MAX_POWER)
 		elif arg.begins_with("--view="):
 			_start_side = value == "2d"
 		elif arg.begins_with("--level="):

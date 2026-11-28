@@ -31,6 +31,7 @@ func setup(p_kind: String, p_pattern: String, p_origin: Vector3, p_game) -> void
 			color = Color(1.0, 0.22, 0.18)
 			health = 3
 			score = 300
+			drop_chance = 0.55
 			radius = 1.5
 			speed = GameConfig.SPIRIT_SPEED * 0.8
 			fire_cooldown = 1.4
@@ -38,6 +39,7 @@ func setup(p_kind: String, p_pattern: String, p_origin: Vector3, p_game) -> void
 			color = Color(0.45, 1.0, 0.75)
 			health = 1
 			score = 100
+			drop_chance = 0.2
 			fire_cooldown = 2.6
 	max_health = health
 	_fire_timer = randf_range(0.5, fire_cooldown)

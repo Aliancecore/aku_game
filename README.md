@@ -39,6 +39,25 @@ Le découpage reprend celui de notre R-Type :
 
 Tout est construit en code avec des formes simples : il n'y a pas encore de modèles 3D.
 
+## Bonus
+
+Les esprits vaincus lâchent parfois un bonus (20 % pour un feu follet, 55 % pour un esprit rouge).
+Il dérive vers la sorcière : vole dedans pour le ramasser (il est attiré quand tu t'en approches).
+Le texte flottant au-dessus dit ce que c'est.
+
+| Bonus | Effet | Cumulable |
+|---|---|---|
+| **Force** (rouge) | +1 dégât par sort, +2 pour le sort chargé | oui, jusqu'à +4 |
+| **Boules** (orange) | +1 boule de feu par tir, en éventail | oui, jusqu'à +4 (5 boules) |
+| **Vitesse** (bleu) | +15 % de vitesse de vol | oui, jusqu'à +4 |
+| **Cadence** (vert) | +25 % de cadence de tir | oui, jusqu'à +4 |
+| **Vie** (rose) | +1 vie (5 maximum, sinon +500 points) | — |
+| **Bouclier** (violet) | invincible 6 secondes | non, il se relance |
+
+Les bonus actifs s'affichent sous les vies. Un bonus déjà au maximum rapporte des points à la place.
+Plus la sorcière est puissante, plus le boss a de vie (+30 % par niveau de bonus), pour que le combat reste un défi.
+Tous les chiffres sont dans `scripts/config.gd` (chercher « Bonus lâchés par les esprits »).
+
 ## Vue 2D (touche P)
 
 La caméra glisse sur le côté et le jeu devient un shoot'em up classique : les esprits arrivent de la
@@ -71,5 +90,6 @@ godot-4 --path . -- --screenshot=$HOME/capture.png --level=2 --time=36 --delay=8
 ```
 
 `--level` et `--time` démarrent directement à un endroit du jeu (ici, le boss).
-`--view=2d` démarre en vue de côté.
+`--view=2d` démarre en vue de côté. `--power=3` démarre avec tous les bonus cumulables au niveau 3.
+`--drop-all` fait lâcher un bonus à chaque esprit vaincu.
 Le Godot installé par snap ne peut pas écrire dans `/tmp` : enregistre la capture dans ton dossier personnel.

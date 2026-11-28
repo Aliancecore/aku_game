@@ -10,6 +10,9 @@ var controls_enabled := false
 var side_view := false      ## Vue 2D (touche P) : ←/→ la font avancer/reculer vers la droite/gauche de l'écran.
 var invincible := 0.0
 var charge := 0.0
+## Niveaux des bonus cumulables (0 = aucun, jusqu'à GameConfig.MAX_POWER).
+var power := {"force": 0, "boules": 0, "vitesse": 0, "cadence": 0}
+var shield := 0.0           ## Secondes de bouclier restantes.
 
 var _cooldown := 0.0
 var _charging := false
@@ -17,6 +20,7 @@ var _time := 0.0
 var _tilt: Node3D          ## Roulis et tangage quand elle se déplace.
 var _body: Node3D          ## Le modèle, tourné pour regarder vers -Z.
 var _charge_orb: MeshInstance3D
+var _shield_mesh: MeshInstance3D
 
 
 func _ready() -> void:
@@ -81,10 +85,23 @@ func _ready() -> void:
 	_charge_orb = Fx.mesh(_body, Fx.sphere(0.6), Fx.mat(Color(1.0, 0.35, 0.9), 5.0), Vector3(2.3, 0, 0))
 	_charge_orb.visible = false
 
+	# Bulle du bouclier.
+	_shield_mesh = Fx.mesh(self, Fx.sphere(1.9, 20), Fx.mat(Color(0.45, 0.6, 1.0, 0.25), 2.0, true),
+			Vector3(0, 0.6, 0))
+	_shield_mesh.visible = false
+
 
 func _physics_process(delta: float) -> void:
 	_time += delta
 	_tilt.position.y = sin(_time * 3.0) * 0.12
+
+	if shield > 0.0:
+		shield -= delta
+		# Clignote pendant la dernière seconde et demie pour prévenir que ça s'arrête.
+		_shield_mesh.visible = shield > 1.5 or int(shield * 10.0) % 2 == 0
+		_shield_mesh.scale = Vector3.ONE * (1.0 + 0.04 * sin(_time * 8.0))
+	else:
+		_shield_mesh.visible = false
 
 	if invincible > 0.0:
 		invincible -= delta
@@ -96,7 +113,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var dir := Input.get_vector("move_left", "move_right", "move_down", "move_up")
-	var step := GameConfig.PLAYER_SPEED * delta
+	var step := move_speed() * delta
 	position.y += dir.y * step
 	if side_view:
 		# Vue de côté : la droite de l'écran est le -Z du jeu ; on se recale sur x = 0.
@@ -121,7 +138,7 @@ func _update_shooting(delta: float) -> void:
 		_charging = true
 		charge = 0.0
 		if _cooldown <= 0.0:
-			_cooldown = GameConfig.PLAYER_FIRE_COOLDOWN
+			_cooldown = fire_cooldown()
 			fired.emit(muzzle(), false)
 	if _charging and Input.is_action_pressed("shoot"):
 		charge = minf(charge + delta, GameConfig.CHARGE_TIME)
@@ -141,9 +158,46 @@ func muzzle() -> Vector3:
 	return position + Vector3(0.0, _tilt.position.y, -2.4)
 
 
+## Dégâts d'un sort : 1, plus 1 par niveau de Force.
+func damage() -> int:
+	return 1 + power["force"]
+
+
+## Nombre de boules de feu par tir : 1, plus 1 par niveau de Boules.
+func shot_count() -> int:
+	return 1 + power["boules"]
+
+
+func move_speed() -> float:
+	return GameConfig.PLAYER_SPEED * (1.0 + GameConfig.SPEED_PER_LEVEL * power["vitesse"])
+
+
+func fire_cooldown() -> float:
+	return GameConfig.PLAYER_FIRE_COOLDOWN / (1.0 + GameConfig.CADENCE_PER_LEVEL * power["cadence"])
+
+
+## Somme des niveaux de bonus : sert à durcir le boss quand la sorcière est très puissante.
+func total_power() -> int:
+	var total := 0
+	for k in power:
+		total += power[k]
+	return total
+
+
+## Applique un bonus cumulable ou le bouclier. Renvoie false si le niveau est déjà au maximum.
+func apply_bonus(kind: String) -> bool:
+	if kind == "bouclier":
+		shield = GameConfig.SHIELD_TIME
+		return true
+	if not power.has(kind) or power[kind] >= GameConfig.MAX_POWER:
+		return false
+	power[kind] += 1
+	return true
+
+
 ## La sorcière peut-elle être touchée maintenant ?
 func is_hittable() -> bool:
-	return controls_enabled and invincible <= 0.0
+	return controls_enabled and invincible <= 0.0 and shield <= 0.0
 
 
 func hurt() -> void:

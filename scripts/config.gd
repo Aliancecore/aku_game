@@ -50,8 +50,22 @@ const CHARGED_SHOT_SPEED := 55.0
 const CHARGED_SHOT_RADIUS := 1.4
 const CHARGED_SHOT_DAMAGE := 5          ## Traverse les esprits.
 
+# Bonus lâchés par les esprits. Force, boules, vitesse et cadence se cumulent jusqu'à MAX_POWER.
+const MAX_POWER := 4                    ## Niveau maximum de chaque bonus cumulable.
+const MAX_LIVES := 5
+const BONUS_DROP_SPEED := 11.0          ## Les bonus dérivent vers la sorcière (+Z).
+const BONUS_PICKUP_RADIUS := 1.4        ## Distance de ramassage (en plus du rayon de la sorcière).
+const BONUS_MAGNET_RANGE := 7.0         ## Près de la sorcière, un bonus est attiré vers elle.
+const BONUS_MAGNET_SPEED := 16.0
+const SHIELD_TIME := 6.0                ## Secondes d'invincibilité du bouclier.
+const SPEED_PER_LEVEL := 0.15           ## +15 % de vitesse de vol par niveau.
+const CADENCE_PER_LEVEL := 0.25         ## +25 % de cadence de tir par niveau.
+const SHOT_SPREAD_ANGLE := 0.07         ## Écart (radians) entre deux boules de l'éventail.
+const SHOT_SPREAD_OFFSET := 0.45        ## Écart (mètres) entre deux boules au départ.
+const BOSS_POWER_SCALE := 0.3           ## Le boss gagne 30 % de vie par niveau de bonus de la sorcière.
+
 # Esprits.
-const SPIRIT_SPEED := 22.0              ## Vitesse d'approche vers la caméra.
+const SPIRIT_SPEED := 22.0             ## Vitesse d'approche vers la caméra.
 const SPIRIT_RADIUS := 1.2
 const SINE_AMPLITUDE := 4.0             ## Largeur de la vague.
 const SINE_FREQUENCY := 0.4             ## Vagues par seconde.
