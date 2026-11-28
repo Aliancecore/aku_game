@@ -16,6 +16,7 @@ godot-4 -e              # ouvrir dans l'éditeur
 | Flèches | se déplacer (haut, bas, gauche, droite) ; le balai avance tout seul |
 | Espace (appui court) | lancer un sort ; il annule une boule d'esprit qu'il touche |
 | Espace (maintenir 1 s puis relâcher) | sort chargé : 5 dégâts, traverse les esprits |
+| P | changer de vue : 3D (derrière la sorcière) ou 2D (de côté, façon R-Type) |
 | Entrée | commencer / rejouer |
 | Échap | quitter |
 
@@ -37,6 +38,14 @@ Le découpage reprend celui de notre R-Type :
 | `scripts/hud.gd` | score, vies, jauge de charge, barre du boss | `HudWidgets` |
 
 Tout est construit en code avec des formes simples : il n'y a pas encore de modèles 3D.
+
+## Vue 2D (touche P)
+
+La caméra glisse sur le côté et le jeu devient un shoot'em up classique : les esprits arrivent de la
+droite, **←/→ font avancer et reculer** la sorcière, ↑/↓ la montent et la descendent.
+La profondeur n'existe plus : les collisions et la visée l'ignorent (un esprit placé à `x = 4`
+reste touchable). Les trajectoires `sine` et `spiral` bougent en partie dans la profondeur,
+elles paraissent donc plus calmes en 2D. On peut changer de vue à tout moment, même en plein combat.
 
 ## Ajouter une vague
 
@@ -62,4 +71,5 @@ godot-4 --path . -- --screenshot=$HOME/capture.png --level=2 --time=36 --delay=8
 ```
 
 `--level` et `--time` démarrent directement à un endroit du jeu (ici, le boss).
+`--view=2d` démarre en vue de côté.
 Le Godot installé par snap ne peut pas écrire dans `/tmp` : enregistre la capture dans ton dossier personnel.

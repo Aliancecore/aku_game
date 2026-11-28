@@ -20,8 +20,14 @@ var witch: Witch
 var world: Node3D
 var hud: Hud
 var _camera: Camera3D
+var _city: City
 var _reticle: Node3D
 var _clear_timer := 0.0
+
+# Vue : 3D (caméra derrière la sorcière) ou 2D (de côté, façon R-Type), touche P.
+var side_view := false
+var _view_blend := 0.0          ## 0 = vue 3D, 1 = vue 2D, entre les deux pendant le changement.
+var _cam_behind := Vector3(0, GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
 
 # Mode test (ligne de commande), pour jouer tout seul et prendre une capture :
 #   godot-4 --path . -- --screenshot=$HOME/capture.png --level=2 --time=38 --delay=6
@@ -30,6 +36,7 @@ var _shot_path := ""
 var _shot_delay := 6.0
 var _start_level := 0
 var _start_time := 0.0
+var _start_side := false
 var _auto_t := 0.0
 
 
@@ -42,7 +49,8 @@ func _ready() -> void:
 	_camera.far = 1500.0
 	_camera.position = Vector3(0, GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
 	add_child(_camera)
-	add_child(City.new())
+	_city = City.new()
+	add_child(_city)
 
 	world = Node3D.new()
 	add_child(world)
@@ -58,9 +66,12 @@ func _ready() -> void:
 	add_child(hud)
 	hud.show_message("AKU", "La sorcière de Cotonou\n\n"
 			+ "Flèches : voler     Espace : lancer un sort\n"
-			+ "Maintenir Espace : sort chargé\n\nEntrée pour commencer")
+			+ "Maintenir Espace : sort chargé     P : vue 3D / 2D\n\nEntrée pour commencer")
 
 	_read_cli()
+	if _start_side:
+		_set_side_view(true, false)
+		_view_blend = 1.0
 	if _autoplay:
 		_start_game()
 		_take_screenshot()
@@ -69,6 +80,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("quit"):
 		get_tree().quit()
+	if Input.is_action_just_pressed("toggle_view"):
+		_set_side_view(not side_view)
 	match state:
 		State.TITLE:
 			if Input.is_action_just_pressed("start"):
@@ -80,7 +93,7 @@ func _process(delta: float) -> void:
 		boss = null
 	_follow_camera(delta)
 	_reticle.position = witch.muzzle() + Vector3(0, 0, -GameConfig.RETICLE_DISTANCE)
-	_reticle.visible = witch.controls_enabled
+	_reticle.visible = witch.controls_enabled and not side_view
 	hud.update_stats(score, lives, witch.charge / GameConfig.CHARGE_TIME, boss)
 
 
@@ -100,13 +113,46 @@ func _physics_process(delta: float) -> void:
 
 # --- Caméra et viseur ----------------------------------------------------------
 
-## La caméra suit la sorcière à moitié : elle reste visible et on sent ses virages.
+## Bascule entre la vue 3D (derrière la sorcière) et la vue 2D (de côté). Touche P.
+func _set_side_view(on: bool, announce := true) -> void:
+	side_view = on
+	witch.side_view = on
+	_city.set_side_view(on)
+	Patterns.hover_z = GameConfig.SIDE_HOVER_Z if on else GameConfig.HOVER_Z
+	if announce:
+		hud.flash("Vue 2D" if on else "Vue 3D")
+
+
+## Où apparaissent les esprits : tout au fond en 3D, juste hors écran en 2D.
+func spawn_z() -> float:
+	return GameConfig.SIDE_SPAWN_Z if side_view else GameConfig.SPAWN_Z
+
+
+## Où le boss s'arrête pour combattre.
+func boss_hover_z() -> float:
+	return GameConfig.SIDE_BOSS_HOVER_Z if side_view else GameConfig.BOSS_HOVER_Z
+
+
+## En vue 2D, la profondeur (x) n'existe plus à l'écran : on l'ignore pour les collisions et la visée.
+func _flat(v: Vector3) -> Vector3:
+	return Vector3(0.0, v.y, v.z) if side_view else v
+
+
+## La caméra suit la sorcière à moitié en 3D ; en 2D elle regarde la scène de côté.
+## Pendant le changement de vue, elle glisse de l'une à l'autre.
 func _follow_camera(delta: float) -> void:
+	_view_blend = move_toward(_view_blend, 1.0 if side_view else 0.0, GameConfig.VIEW_BLEND_SPEED * delta)
+	var k := smoothstep(0.0, 1.0, _view_blend)
+
 	var p := witch.position
 	var follow := GameConfig.CAMERA_FOLLOW
-	var target := Vector3(p.x * follow, p.y * follow * 0.8 + GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
-	_camera.position = _camera.position.lerp(target, 1.0 - exp(-6.0 * delta))
-	_camera.look_at(Vector3(p.x * 0.35, p.y * 0.35 + 1.8, -40.0), Vector3.UP)
+	var behind := Vector3(p.x * follow, p.y * follow * 0.8 + GameConfig.CAMERA_HEIGHT, GameConfig.CAMERA_Z)
+	_cam_behind = _cam_behind.lerp(behind, 1.0 - exp(-6.0 * delta))
+	var look_behind := Vector3(p.x * 0.35, p.y * 0.35 + 1.8, -40.0)
+
+	_camera.position = _cam_behind.lerp(GameConfig.SIDE_CAMERA, k)
+	_camera.fov = lerpf(GameConfig.CAMERA_FOV, GameConfig.SIDE_FOV, k)
+	_camera.look_at(look_behind.lerp(GameConfig.SIDE_LOOK, k), Vector3.UP)
 
 
 ## Le viseur : deux anneaux devant la sorcière, toujours visibles.
@@ -170,6 +216,7 @@ func _run_level(delta: float) -> void:
 func _spawn_wave(wave: Dictionary) -> void:
 	var kind := str(wave.get("type", "feu_follet"))
 	var x := float(wave.get("x", 0.0))
+	var z0 := spawn_z()
 	var y := float(wave.get("y", 0.0))
 	if kind == "boss":
 		boss = Boss.new()
@@ -181,7 +228,7 @@ func _spawn_wave(wave: Dictionary) -> void:
 	var count := int(wave.get("count", 1))
 	var row := str(wave.get("formation", "column")) == "row"
 	for i in count:
-		var pos := Vector3(x, y, GameConfig.SPAWN_Z)
+		var pos := Vector3(x, y, z0)
 		if row:
 			pos.x += (i - (count - 1) / 2.0) * GameConfig.ROW_SPACING
 		else:
@@ -206,7 +253,7 @@ func _check_collisions() -> void:
 			var id := enemy.get_instance_id()
 			if enemy.is_queued_for_deletion() or shot.hit.has(id):
 				continue
-			if _segment_hits(shot.previous, shot.position, enemy.position, shot.radius + enemy.radius):
+			if _segment_hits(_flat(shot.previous), _flat(shot.position), _flat(enemy.position), shot.radius + enemy.radius):
 				shot.hit[id] = true
 				if enemy.take_damage(shot.damage):
 					_kill_enemy(enemy)
@@ -220,7 +267,7 @@ func _check_collisions() -> void:
 		var enemy := enemy_node as Enemy
 		if enemy.is_queued_for_deletion():
 			continue
-		if witch.position.distance_to(enemy.position) < witch.radius + enemy.radius:
+		if _flat(witch.position).distance_to(_flat(enemy.position)) < witch.radius + enemy.radius:
 			if not enemy is Boss:
 				_kill_enemy(enemy)
 			_hurt_player()
@@ -229,7 +276,7 @@ func _check_collisions() -> void:
 		var shot := node as Shot
 		if shot.is_queued_for_deletion():
 			continue
-		if _segment_hits(shot.previous, shot.position, witch.position, shot.radius + witch.radius):
+		if _segment_hits(_flat(shot.previous), _flat(shot.position), _flat(witch.position), shot.radius + witch.radius):
 			shot.queue_free()
 			_hurt_player()
 			return
@@ -248,8 +295,8 @@ func _cancel_shots() -> void:
 			if theirs.is_queued_for_deletion():
 				continue
 			# Les deux vont vite l'un vers l'autre : on teste le mouvement relatif pendant l'image.
-			var before := mine.previous - theirs.previous
-			var after := mine.position - theirs.position
+			var before := _flat(mine.previous) - _flat(theirs.previous)
+			var after := _flat(mine.position) - _flat(theirs.position)
 			var reach := mine.radius + theirs.radius + GameConfig.SHOT_CANCEL_MARGIN
 			if _segment_hits(before, after, Vector3.ZERO, reach):
 				_burst(theirs.position, Color(1.0, 0.6, 0.9), 1.6)
@@ -316,15 +363,22 @@ func _on_witch_fired(pos: Vector3, charged: bool) -> void:
 
 ## Un esprit tire une boule vers la sorcière.
 func enemy_fire(from: Vector3) -> void:
-	if state == State.PLAYING:
-		_enemy_shot(from, (witch.position - from).normalized())
+	if _can_fire(from):
+		_enemy_shot(from, (_flat(witch.position) - _flat(from)).normalized())
+
+
+## Un esprit tire seulement pendant la partie, et en vue 2D seulement une fois entré à l'écran.
+func _can_fire(from: Vector3) -> bool:
+	if state != State.PLAYING:
+		return false
+	return not (side_view and from.z < GameConfig.SIDE_VIEW_FAR_Z)
 
 
 ## Gerbe horizontale de n boules visées, écartées de `step` radians.
 func enemy_spread(from: Vector3, n: int, step: float) -> void:
-	if state != State.PLAYING:
+	if not _can_fire(from):
 		return
-	var aim := (witch.position - from).normalized()
+	var aim := (_flat(witch.position) - _flat(from)).normalized()
 	for i in n:
 		var angle := (i - (n - 1) / 2.0) * step
 		_enemy_shot(from, aim.rotated(Vector3.UP, angle))
@@ -332,7 +386,7 @@ func enemy_spread(from: Vector3, n: int, step: float) -> void:
 
 ## Couronne de n boules qui s'ouvre en arrivant vers la sorcière.
 func enemy_ring(from: Vector3, n: int) -> void:
-	if state != State.PLAYING:
+	if not _can_fire(from):
 		return
 	for i in n:
 		var a := TAU * i / n
@@ -355,6 +409,7 @@ func _setup_inputs() -> void:
 	_bind("shoot", [KEY_SPACE, KEY_J], -1, 0.0, JOY_BUTTON_A)
 	_bind("start", [KEY_ENTER, KEY_KP_ENTER], -1, 0.0, JOY_BUTTON_START)
 	_bind("quit", [KEY_ESCAPE])
+	_bind("toggle_view", [KEY_P])
 
 
 func _bind(action: String, keys: Array, axis := -1, axis_value := 0.0, button := -1) -> void:
@@ -386,6 +441,8 @@ func _read_cli() -> void:
 		elif arg.begins_with("--screenshot="):
 			_shot_path = value
 			_autoplay = true
+		elif arg.begins_with("--view="):
+			_start_side = value == "2d"
 		elif arg.begins_with("--level="):
 			_start_level = clampi(int(value) - 1, 0, GameConfig.LEVELS.size() - 1)
 		elif arg.begins_with("--time="):
@@ -396,7 +453,10 @@ func _read_cli() -> void:
 
 func _autoplay_step(delta: float) -> void:
 	_auto_t += delta
-	witch.position.x = sin(_auto_t * 0.6) * 5.0
+	if side_view:
+		witch.position.z = -4.0 + sin(_auto_t * 0.6) * 5.0
+	else:
+		witch.position.x = sin(_auto_t * 0.6) * 5.0
 	witch.position.y = 1.0 + sin(_auto_t * 0.9) * 3.0
 	if int(_auto_t * 5.0) % 2 == 0:
 		Input.action_press("shoot")

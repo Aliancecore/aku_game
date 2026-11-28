@@ -12,6 +12,18 @@ const CAMERA_HEIGHT := 3.4
 const CAMERA_FOV := 70.0
 const CAMERA_FOLLOW := 0.6              ## Part du déplacement de la sorcière que la caméra suit.
 
+# Vue de côté (touche P), façon R-Type : la caméra passe sur le côté, les esprits
+# arrivent de la droite (le -Z du jeu devient la droite de l'écran).
+const SIDE_CAMERA := Vector3(42.0, 3.0, -8.0)
+const SIDE_LOOK := Vector3(0.0, 1.0, -8.0)
+const SIDE_FOV := 28.0
+const SIDE_Z_RANGE := Vector2(-11.0, 4.0)   ## Zone de vol en profondeur (min, max) : l'écran en 2D.
+const SIDE_VIEW_FAR_Z := -25.0              ## Au-delà (hors écran à droite), les esprits ne tirent pas.
+const SIDE_SPAWN_Z := -45.0                 ## Apparition juste hors écran, pour que ça arrive vite.
+const SIDE_HOVER_Z := -18.0                 ## Les esprits "hover" s'arrêtent ici en vue de côté.
+const SIDE_BOSS_HOVER_Z := -19.0
+const VIEW_BLEND_SPEED := 2.5               ## Vitesse du changement de vue (1 / seconde).
+
 # Zone de vol de la sorcière, dans le plan z = 0.
 const PLAY_MIN := Vector2(-9.0, -4.0)
 const PLAY_MAX := Vector2(9.0, 7.0)

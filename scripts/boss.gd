@@ -20,7 +20,7 @@ func setup(p_game, y: float) -> void:
 	radius = 3.0 * GameConfig.BOSS_SCALE
 	score = GameConfig.BOSS_SCORE
 	color = Color(0.3, 0.85, 1.0)
-	position = Vector3(0.0, y, GameConfig.SPAWN_Z - 30.0)
+	position = Vector3(0.0, y, game.spawn_z() - 30.0)
 	scale = Vector3.ONE * GameConfig.BOSS_SCALE
 	_build()
 
@@ -56,8 +56,8 @@ func _build() -> void:
 
 func _physics_process(delta: float) -> void:
 	_elapsed += delta
-	if position.z < GameConfig.BOSS_HOVER_Z:
-		position.z = minf(position.z + GameConfig.BOSS_ENTER_SPEED * delta, GameConfig.BOSS_HOVER_Z)
+	var hover_z: float = game.boss_hover_z()
+	position.z = move_toward(position.z, hover_z, GameConfig.BOSS_ENTER_SPEED * delta)
 	position.x = 6.0 * sin(_elapsed * 0.45)
 	position.y = 2.5 + 3.0 * sin(_elapsed * 0.7)
 	_orbs.rotation.z += delta * 1.2
@@ -67,7 +67,7 @@ func _physics_process(delta: float) -> void:
 	_core_mat.emission_energy_multiplier = 1.5 + _flash * 6.0
 
 	_fire_timer -= delta
-	if _fire_timer <= 0.0 and position.z >= GameConfig.BOSS_HOVER_Z - 1.0:
+	if _fire_timer <= 0.0 and absf(position.z - hover_z) < 1.0:
 		var enraged := health < max_health / 2
 		_fire_timer = 0.8 if enraged else 1.3
 		_volley += 1

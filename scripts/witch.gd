@@ -7,6 +7,7 @@ signal fired(pos: Vector3, charged: bool)
 
 var radius := GameConfig.PLAYER_RADIUS
 var controls_enabled := false
+var side_view := false      ## Vue 2D (touche P) : ←/→ la font avancer/reculer vers la droite/gauche de l'écran.
 var invincible := 0.0
 var charge := 0.0
 
@@ -95,11 +96,20 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var dir := Input.get_vector("move_left", "move_right", "move_down", "move_up")
-	position += Vector3(dir.x, dir.y, 0.0) * GameConfig.PLAYER_SPEED * delta
+	var step := GameConfig.PLAYER_SPEED * delta
+	position.y += dir.y * step
+	if side_view:
+		# Vue de côté : la droite de l'écran est le -Z du jeu ; on se recale sur x = 0.
+		position.x = move_toward(position.x, 0.0, step * 1.5)
+		position.z = clampf(position.z - dir.x * step, GameConfig.SIDE_Z_RANGE.x, GameConfig.SIDE_Z_RANGE.y)
+	else:
+		position.z = move_toward(position.z, 0.0, step * 1.5)
+		position.x += dir.x * step
 	position.x = clampf(position.x, GameConfig.PLAY_MIN.x, GameConfig.PLAY_MAX.x)
 	position.y = clampf(position.y, GameConfig.PLAY_MIN.y, GameConfig.PLAY_MAX.y)
 	var k := 1.0 - exp(-8.0 * delta)
-	_tilt.rotation.z = lerpf(_tilt.rotation.z, -dir.x * 0.55, k)   # roulis
+	var roll := 0.0 if side_view else -dir.x * 0.55
+	_tilt.rotation.z = lerpf(_tilt.rotation.z, roll, k)            # roulis
 	_tilt.rotation.x = lerpf(_tilt.rotation.x, dir.y * 0.25, k)    # tangage
 
 	_update_shooting(delta)

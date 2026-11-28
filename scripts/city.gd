@@ -41,6 +41,12 @@ func _ready() -> void:
 	_build_motos()
 
 
+## Vue de côté : la caméra est du côté x > 0, on cache ce qui lui boucherait la vue.
+func set_side_view(on: bool) -> void:
+	for child in _scrolling.get_children():
+		(child as Node3D).visible = not (on and (child as Node3D).position.x > 0.0)
+
+
 func _process(delta: float) -> void:
 	var span := NEAR_Z - FAR_Z
 	var step := GameConfig.SCROLL_SPEED * delta
