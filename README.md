@@ -39,6 +39,15 @@ Le découpage reprend celui de notre R-Type :
 
 Tout est construit en code avec des formes simples : il n'y a pas encore de modèles 3D.
 
+## Atterrir et courir
+
+Quand la sorcière descend près du sol, elle **atterrit toute seule et se met à courir** à pied,
+son balai sur l'épaule. Elle peut toujours tirer et bouger à gauche/droite (un peu moins vite
+qu'en vol), mais elle ne peut plus monter ni descendre : elle rase le sol, hors de portée
+des esprits qui volent haut. Pour redécoller, **appuie deux fois vite sur la flèche du haut**
+(moins de 0,35 s entre les deux appuis). Un seul appui ne fait rien.
+Les réglages sont dans `scripts/config.gd` (section « Atterrissage et course »).
+
 ## Bonus
 
 Les esprits vaincus lâchent parfois un bonus (20 % pour un feu follet, 55 % pour un esprit rouge).
@@ -91,5 +100,11 @@ godot-4 --path . -- --screenshot=$HOME/capture.png --level=2 --time=36 --delay=8
 
 `--level` et `--time` démarrent directement à un endroit du jeu (ici, le boss).
 `--view=2d` démarre en vue de côté. `--power=3` démarre avec tous les bonus cumulables au niveau 3.
-`--drop-all` fait lâcher un bonus à chaque esprit vaincu.
+`--drop-all` fait lâcher un bonus à chaque esprit vaincu. `--run` démarre avec la sorcière à pied.
+
+Test automatique de l'atterrissage et du décollage (envoie de vraies pressions de touches) :
+
+```bash
+godot-4 --headless --path . --script res://tests/selftest_run.gd
+```
 Le Godot installé par snap ne peut pas écrire dans `/tmp` : enregistre la capture dans ton dossier personnel.

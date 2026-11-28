@@ -29,6 +29,17 @@ const PLAY_MIN := Vector2(-9.0, -4.0)
 const PLAY_MAX := Vector2(9.0, 7.0)
 const GROUND_Y := -6.0
 
+# Atterrissage et course : près du sol, la sorcière descend et court. Deux appuis rapides
+# sur la flèche du haut la font décoller.
+const LAND_TRIGGER_Y := -3.3            ## En vol, à cette hauteur ou moins, elle atterrit.
+const RUN_HEIGHT := 1.0                 ## Hauteur de son centre au-dessus du sol quand elle court.
+const RUN_Y := GROUND_Y + RUN_HEIGHT
+const LAND_SPEED := 9.0                 ## Vitesse de descente (mètres par seconde).
+const TAKEOFF_SPEED := 12.0             ## Vitesse de montée au décollage.
+const TAKEOFF_Y := -2.0                 ## Hauteur où le décollage rend la main au vol libre.
+const RUN_SPEED_FACTOR := 0.85          ## À pied, elle va un peu moins vite qu'en vol.
+const DOUBLE_TAP_TIME := 0.35           ## Délai max entre les deux appuis pour décoller.
+
 # Vitesse de vol : la ville défile vers la caméra.
 const SCROLL_SPEED := 18.0
 

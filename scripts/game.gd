@@ -38,6 +38,7 @@ var _start_level := 0
 var _start_time := 0.0
 var _start_side := false
 var _start_power := 0
+var _start_run := false
 var _drop_all := false          ## Chaque esprit vaincu lâche un bonus (pour tester).
 var _auto_t := 0.0
 
@@ -59,6 +60,8 @@ func _ready() -> void:
 	witch = Witch.new()
 	witch.position = GameConfig.PLAYER_START
 	witch.fired.connect(_on_witch_fired)
+	witch.landed.connect(func(): hud.toast("Elle court !  Deux fois flèche haut pour s'envoler", Color(1.0, 0.8, 0.4)))
+	witch.took_off.connect(func(): hud.toast("Envol !", Color(0.6, 0.85, 1.0)))
 	world.add_child(witch)
 	_reticle = _make_reticle()
 	_reticle.visible = false
@@ -68,11 +71,14 @@ func _ready() -> void:
 	add_child(hud)
 	hud.show_message("AKU", "La sorcière de Cotonou\n\n"
 			+ "Flèches : voler     Espace : lancer un sort\n"
-			+ "Maintenir Espace : sort chargé     P : vue 3D / 2D\n\nEntrée pour commencer")
+			+ "Maintenir Espace : sort chargé     P : vue 3D / 2D\n"
+			+ "Près du sol, elle atterrit et court : deux fois flèche haut pour s'envoler\n\nEntrée pour commencer")
 
 	_read_cli()
 	for kind in witch.power:
 		witch.power[kind] = _start_power
+	if _start_run:
+		witch.start_running()
 	if _start_side:
 		_set_side_view(true, false)
 		_view_blend = 1.0
@@ -519,6 +525,8 @@ func _read_cli() -> void:
 		elif arg.begins_with("--screenshot="):
 			_shot_path = value
 			_autoplay = true
+		elif arg == "--run":
+			_start_run = true
 		elif arg == "--drop-all":
 			_drop_all = true
 		elif arg.begins_with("--power="):
@@ -539,7 +547,8 @@ func _autoplay_step(delta: float) -> void:
 		witch.position.z = -4.0 + sin(_auto_t * 0.6) * 5.0
 	else:
 		witch.position.x = sin(_auto_t * 0.6) * 5.0
-	witch.position.y = 1.0 + sin(_auto_t * 0.9) * 3.0
+	if not witch.on_ground():
+		witch.position.y = 1.0 + sin(_auto_t * 0.9) * 3.0
 	if int(_auto_t * 5.0) % 2 == 0:
 		Input.action_press("shoot")
 	else:

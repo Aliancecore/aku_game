@@ -2,8 +2,16 @@ class_name Witch
 extends Node3D
 ## La sorcière sur son balai, vue de dos : déplacement, sorts (appui court)
 ## et sort chargé (maintenir). Elle vole vers le fond de l'avenue (-Z).
+## Si elle descend près du sol, elle atterrit et court à pied ; deux appuis rapides
+## sur la flèche du haut la font décoller.
 
 signal fired(pos: Vector3, charged: bool)
+signal landed
+signal took_off
+
+enum Mode { FLYING, LANDING, RUNNING, TAKING_OFF }
+
+var mode := Mode.FLYING
 
 var radius := GameConfig.PLAYER_RADIUS
 var controls_enabled := false
@@ -18,7 +26,12 @@ var _cooldown := 0.0
 var _charging := false
 var _time := 0.0
 var _tilt: Node3D          ## Roulis et tangage quand elle se déplace.
-var _body: Node3D          ## Le modèle, tourné pour regarder vers -Z.
+var _body: Node3D          ## Le modèle en vol (sur son balai), tourné pour regarder vers -Z.
+var _runner: Node3D        ## Le modèle debout, pour la course.
+var _legs: Array[Node3D] = []
+var _arms: Array[Node3D] = []
+var _run_phase := 0.0
+var _last_up_tap := -10.0  ## Moment du dernier appui sur la flèche du haut (double appui = décollage).
 var _charge_orb: MeshInstance3D
 var _shield_mesh: MeshInstance3D
 
@@ -53,6 +66,8 @@ func _ready() -> void:
 	# Écharpe qui flotte derrière elle.
 	Fx.mesh(_body, Fx.box(Vector3(1.3, 0.05, 0.35)), wax_green, Vector3(-0.85, 1.2, 0), Vector3(0, 0, 0.3))
 
+	_build_runner(wood, straw, skin, wax_orange, wax_green)
+
 	# Halo magique : éclaire son dos, côté caméra.
 	var aura := OmniLight3D.new()
 	aura.light_color = Color(1.0, 0.6, 0.3)
@@ -81,8 +96,8 @@ func _ready() -> void:
 	sparks.position = Vector3(-2.4, 0, 0)
 	_body.add_child(sparks)
 
-	# Boule d'énergie qui grossit au bout du balai pendant la charge.
-	_charge_orb = Fx.mesh(_body, Fx.sphere(0.6), Fx.mat(Color(1.0, 0.35, 0.9), 5.0), Vector3(2.3, 0, 0))
+	# Boule d'énergie qui grossit devant elle pendant la charge (son point d'attache change à pied).
+	_charge_orb = Fx.mesh(_tilt, Fx.sphere(0.6), Fx.mat(Color(1.0, 0.35, 0.9), 5.0), Vector3(0, 0, -2.3))
 	_charge_orb.visible = false
 
 	# Bulle du bouclier.
@@ -91,9 +106,53 @@ func _ready() -> void:
 	_shield_mesh.visible = false
 
 
+## Le modèle debout : jambes et bras qui balancent, le balai porté sur l'épaule.
+## Construit comme celui en vol (le long de +X, puis tourné vers -Z), pieds à y = 0.
+func _build_runner(wood: Material, straw: Material, skin: Material, wax_orange: Material, wax_green: Material) -> void:
+	_runner = Node3D.new()
+	_runner.rotation.y = PI / 2.0
+	_runner.scale = Vector3.ONE * 0.85
+	_runner.position.y = -GameConfig.RUN_HEIGHT
+	_runner.visible = false
+	_tilt.add_child(_runner)
+
+	# Jambes : le pivot est à la hanche, la jambe pend dessous.
+	for side in [-1.0, 1.0]:
+		var leg := Node3D.new()
+		leg.position = Vector3(0, 1.0, side * 0.14)
+		_runner.add_child(leg)
+		Fx.mesh(leg, Fx.cylinder(0.09, 0.07, 1.0), skin, Vector3(0, -0.5, 0))
+		Fx.mesh(leg, Fx.box(Vector3(0.32, 0.1, 0.16)), wood, Vector3(0.08, -1.0, 0))
+		_legs.append(leg)
+
+	# Pagne, buste, tête et foulard noué.
+	Fx.mesh(_runner, Fx.cylinder(0.25, 0.55, 0.8), wax_orange, Vector3(0, 1.1, 0))
+	Fx.mesh(_runner, Fx.cylinder(0.2, 0.26, 0.6), wax_orange, Vector3(0, 1.7, 0))
+	Fx.mesh(_runner, Fx.sphere(0.24), skin, Vector3(0, 2.15, 0))
+	Fx.mesh(_runner, Fx.sphere(0.3), wax_green, Vector3(-0.05, 2.33, 0), Vector3.ZERO, Vector3(1.1, 0.8, 1.0))
+	Fx.mesh(_runner, Fx.sphere(0.14), wax_green, Vector3(-0.3, 2.45, 0))
+
+	# Bras : le pivot est à l'épaule, ils balancent à l'opposé des jambes.
+	for side in [-1.0, 1.0]:
+		var arm := Node3D.new()
+		arm.position = Vector3(0, 1.9, side * 0.28)
+		_runner.add_child(arm)
+		Fx.mesh(arm, Fx.cylinder(0.07, 0.06, 0.7), skin, Vector3(0, -0.35, 0))
+		_arms.append(arm)
+
+	# Le balai, penché sur l'épaule, la paille vers l'arrière.
+	var broom := Node3D.new()
+	broom.position = Vector3(-0.1, 1.5, 0.36)
+	broom.rotation.z = 0.7
+	_runner.add_child(broom)
+	Fx.mesh(broom, Fx.cylinder(0.05, 0.05, 2.6), wood, Vector3(0, 0.3, 0))
+	Fx.mesh(broom, Fx.cylinder(0.4, 0.1, 0.9), straw, Vector3(0, 1.75, 0))
+
+
 func _physics_process(delta: float) -> void:
 	_time += delta
-	_tilt.position.y = sin(_time * 3.0) * 0.12
+	_tilt.position.y = 0.0 if on_ground() else sin(_time * 3.0) * 0.12
+	_animate_run(delta)
 
 	if shield > 0.0:
 		shield -= delta
@@ -114,7 +173,27 @@ func _physics_process(delta: float) -> void:
 
 	var dir := Input.get_vector("move_left", "move_right", "move_down", "move_up")
 	var step := move_speed() * delta
-	position.y += dir.y * step
+	match mode:
+		Mode.FLYING:
+			position.y += dir.y * step
+		Mode.LANDING:
+			# Elle descend toute seule jusqu'au sol, puis se met à courir.
+			position.y = move_toward(position.y, GameConfig.RUN_Y, GameConfig.LAND_SPEED * delta)
+			if is_equal_approx(position.y, GameConfig.RUN_Y):
+				_set_mode(Mode.RUNNING)
+		Mode.RUNNING:
+			position.y = GameConfig.RUN_Y
+			step *= GameConfig.RUN_SPEED_FACTOR
+			# Deux appuis rapides sur la flèche du haut : elle remonte sur son balai.
+			if Input.is_action_just_pressed("move_up"):
+				if _time - _last_up_tap <= GameConfig.DOUBLE_TAP_TIME:
+					_set_mode(Mode.TAKING_OFF)
+				_last_up_tap = _time
+		Mode.TAKING_OFF:
+			position.y = move_toward(position.y, GameConfig.TAKEOFF_Y, GameConfig.TAKEOFF_SPEED * delta)
+			if is_equal_approx(position.y, GameConfig.TAKEOFF_Y):
+				_set_mode(Mode.FLYING)
+
 	if side_view:
 		# Vue de côté : la droite de l'écran est le -Z du jeu ; on se recale sur x = 0.
 		position.x = move_toward(position.x, 0.0, step * 1.5)
@@ -123,11 +202,17 @@ func _physics_process(delta: float) -> void:
 		position.z = move_toward(position.z, 0.0, step * 1.5)
 		position.x += dir.x * step
 	position.x = clampf(position.x, GameConfig.PLAY_MIN.x, GameConfig.PLAY_MAX.x)
-	position.y = clampf(position.y, GameConfig.PLAY_MIN.y, GameConfig.PLAY_MAX.y)
+	if mode == Mode.FLYING:
+		position.y = minf(position.y, GameConfig.PLAY_MAX.y)
+		position.y = maxf(position.y, GameConfig.PLAY_MIN.y)
+		# Assez près du sol : elle atterrit.
+		if position.y <= GameConfig.LAND_TRIGGER_Y:
+			_set_mode(Mode.LANDING)
 	var k := 1.0 - exp(-8.0 * delta)
-	var roll := 0.0 if side_view else -dir.x * 0.55
-	_tilt.rotation.z = lerpf(_tilt.rotation.z, roll, k)            # roulis
-	_tilt.rotation.x = lerpf(_tilt.rotation.x, dir.y * 0.25, k)    # tangage
+	var flying := not on_ground()
+	var roll := 0.0 if side_view else -dir.x * (0.55 if flying else 0.2)
+	_tilt.rotation.z = lerpf(_tilt.rotation.z, roll, k)                                  # roulis
+	_tilt.rotation.x = lerpf(_tilt.rotation.x, dir.y * 0.25 if flying else 0.0, k)       # tangage
 
 	_update_shooting(delta)
 
@@ -153,8 +238,49 @@ func _update_shooting(delta: float) -> void:
 	_charge_orb.scale = Vector3.ONE * (0.3 + ratio) * (1.0 + 0.1 * sin(_time * 30.0) * ratio)
 
 
-## Point de départ des sorts : le bout du balai.
+## Est-elle au sol (en train d'atterrir ou de courir) ?
+func on_ground() -> bool:
+	return mode == Mode.LANDING or mode == Mode.RUNNING
+
+
+## Pose directement la sorcière en train de courir (mode test).
+func start_running() -> void:
+	position.y = GameConfig.RUN_Y
+	_set_mode(Mode.RUNNING, false)
+
+
+## Change d'état et montre le bon modèle : sur le balai en vol, debout au sol.
+func _set_mode(new_mode: Mode, announce := true) -> void:
+	var was_on_ground := on_ground()
+	mode = new_mode
+	var grounded := on_ground()
+	_body.visible = not grounded
+	_runner.visible = grounded
+	# La boule de charge se tient au bout du balai en vol, dans la main à pied.
+	_charge_orb.position = Vector3(0.0, 0.5, -1.3) if grounded else Vector3(0.0, 0.0, -2.3)
+	_last_up_tap = -10.0
+	if announce:
+		if new_mode == Mode.RUNNING:
+			landed.emit()
+		elif new_mode == Mode.TAKING_OFF and was_on_ground:
+			took_off.emit()
+
+
+## Balancement des jambes et des bras pendant la course, léger rebond du corps.
+func _animate_run(delta: float) -> void:
+	if not _runner.visible:
+		return
+	_run_phase += delta * 13.0
+	for i in _legs.size():
+		_legs[i].rotation.z = sin(_run_phase + i * PI) * 0.9
+		_arms[i].rotation.z = -sin(_run_phase + i * PI) * 0.7
+	_runner.position.y = -GameConfig.RUN_HEIGHT + absf(sin(_run_phase)) * 0.06
+
+
+## Point de départ des sorts : le bout du balai en vol, la main à pied.
 func muzzle() -> Vector3:
+	if on_ground():
+		return position + Vector3(0.0, 0.5, -1.2)
 	return position + Vector3(0.0, _tilt.position.y, -2.4)
 
 
