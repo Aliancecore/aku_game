@@ -99,6 +99,7 @@ func _process(delta: float) -> void:
 		State.GAME_OVER, State.VICTORY:
 			if Input.is_action_just_pressed("start"):
 				get_tree().reload_current_scene()
+				return   # la scène est remplacée : on ne touche plus à la caméra ni au HUD
 	if boss != null and not is_instance_valid(boss):
 		boss = null
 	_follow_camera(delta)
